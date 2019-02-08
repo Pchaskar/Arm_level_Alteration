@@ -1,10 +1,5 @@
-# Required packages and libraries
-# Packages for shiny
-library(shiny)
-library(shinythemes)
-library(dplyr)
-library(readr)
-
+#Calculate percentage chromosome copy number alteration (Gain, Loss, LOH) based on Affymetrix Oncoscan Assay 
+#Percentage alteration defined based on the chromosome length covered by oncoscan.
 
 # Input text file of chromosome size
 # Chromosome size, start and end based on Oncoscan coverage
@@ -24,12 +19,17 @@ Arm_end<-as.numeric(Arm_end)
 
 chr_table<-data.frame(Chromosome, Arm, Length, Arm_str, Arm_end)
 
-#print (chr_table)
-
 ##############################################################################################################
-###########################################################  
-oncoscan <- read.table(input$file1$datapath, 
-               sep = "\t", header = input$header1, check.names = FALSE, na.strings=c("","NA"))
+# Read User input file
+###########################################################
+args <- commandArgs(trailingOnly = TRUE)
+
+in_file<-args[1]
+
+sample_id<-gsub(".txt","",in_file)
+
+oncoscan <- read.table(in_file, 
+               sep = "\t", header = TRUE, check.names = FALSE, na.strings=c("","NA"))
   
 ##########################################################
 # Data exrtraction from Oncoscan file and % Gain, Loss and LOH calculations
@@ -150,46 +150,7 @@ oncoscan <- read.table(input$file1$datapath,
     }
     
     # Final results as percent table of GAIN, LOSS adn LOH
-    oncoscan_summary<-data.frame(CHROMOSOME,Arm, GAIN, LOSS, LOH)
+    oncoscan_summary<-data.frame(sample_id, CHROMOSOME,Arm, GAIN, LOSS, LOH)
     
-    # Filter and order the results
-    
-    cutoff<-as.numeric(input$cutoff)
-    variation<-as.character(input$cnv)
-    
-    if(variation %in% "GAIN")
-    {
-      oncoscan_summary <- oncoscan_summary[
-        with(oncoscan_summary, order(-GAIN)),
-        ]
-      oncoscan_summary<-filter(oncoscan_summary, GAIN >= cutoff)
-    }
-
-    else if(variation %in% "LOSS")
-      
-    {
-      oncoscan_summary <- oncoscan_summary[
-        with(oncoscan_summary, order(-LOSS)),
-        ]
-      oncoscan_summary<-filter(oncoscan_summary, LOSS >= cutoff)
-    }
-    
-    else if(variation %in% "LOH")
-      
-    {
-      oncoscan_summary <- oncoscan_summary[
-        with(oncoscan_summary, order(-LOH)),
-        ]
-      oncoscan_summary<-filter(oncoscan_summary, LOH >= cutoff)
-    }
-    else
-    {
-      oncoscan_summary<-oncoscan_summary[
-        with(oncoscan_summary, order(-CHROMOSOME)),
-        ]
-    }
-
-  
-      write.csv(results(), file, row.names = FALSE)
-  
+    print (oncoscan_summary)
   
