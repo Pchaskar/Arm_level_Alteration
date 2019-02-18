@@ -4,19 +4,8 @@
 # Input text file of chromosome size
 # Chromosome size, start and end based on Oncoscan coverage
 
-#Do not hard code! Use the text file instead (see below)
-# Chromosome<-c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "16", "17", "18", "19", "20", "21", "Y", "X", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "Y", "X")
-# Arm<-c("p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "p", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q", "q")
-# Length<-c("120681421", "92250747", "90410210", "49023050", "46389046", "58565593", "57984002", "43765384", "46992414", "39021547", "51383187", "34767256", "35187838", "21841396", "15380695", "24297088", "26240161", "1583738", "7381837", "58346321", "106082854", "147623134", "104335121", "138343687", "131256346", "109026658", "98053925", "99395762", "72896070", "93031003", "80143490", "95915127", "96018327", "88016877", "82409721", "43696696", "54936486", "59460873", "31348601", "33457921", "33753073", "35159113", "15665404", "93487145")
-# Length<-as.numeric(Length)
-# Arm_str<-c("754192", "21494", "63411", "69404", "12225", "204909", "41421", "23417", "204738", "126070", "192764", "83848", "83887", "400959", "12842", "247232", "69094", "9412603", "2655180", "177942", "143130024", "95429197", "93517443", "52684891", "49441966", "61886393", "61064518", "46896972", "68170421", "42403300", "54795357", "37902988", "19084823", "19265147", "20019332", "46461309", "25326941", "18554307", "27744638", "29454542", "14344537", "16054713", "13134531", "61732219")
-# Arm_str<-as.numeric(Arm_str)
-# Arm_end<-c("121435613", "92272241", "90473621", "49092454", "46401271", "58770502", "58025423", "43788801", "47197152", "39147617", "51575951", "34851104", "35271725", "22242355", "15393537", "24544320", "26309255", "10996341", "10037017", "58524263", "249212878", "243052331", "197852564", "191028578", "180698312", "170913051", "159118443", "146292734", "141066491", "135434303", "134938847", "133818115", "115103150", "107282024", "102429053", "90158005", "80263427", "78015180", "59093239", "62912463", "48097610", "51213826", "28799935", "155219364")
-# Arm_end<-as.numeric(Arm_end)
-# chr_table<-data.frame(Chromosome, Arm, Length, Arm_str, Arm_end)
-
 #Reads in the Oncoscan.na33.r1.chromStats.tsv file
-chromstats <- read.table('Q:/1.BIOINFORMATIQUE/GitCentralRepo/CNV-tools/CNV-tools/data/Oncoscan.na33.r1.chromStats.tsv', header = TRUE, na.strings = 'None')
+chromstats <- read.table("OncoScan.na33.r1.chromStats.tsv", header = TRUE, na.strings = 'None', stringsAsFactors = FALSE)
 chr_table <- data.frame(Chromosome = c(chromstats$Chrom, chromstats$Chrom), 
                         Arm = c(rep('p', dim(chromstats)[1]), rep('q', dim(chromstats)[1])),
                         Length = c((chromstats$P_End-chromstats$P_Start+1), (chromstats$Q_End-chromstats$Q_Start+1)),
@@ -138,9 +127,9 @@ for (arm in rownames(chr_table))
       }
     } # End of for loop over each chromosome
     # percent loh, gain and loss calculation for each arm
-    cnv[arm, 'GAIN'] <- gain/arm_length
-    cnv[arm, 'LOSS'] <- loss/arm_length
-    cnv[arm, 'LOH'] <- loh/arm_length
+    cnv[arm, 'GAIN'] <- gain*100/arm_length
+    cnv[arm, 'LOSS'] <- loss*100/arm_length
+    cnv[arm, 'LOH'] <- loh*100/arm_length
     
   } # End of if alteration  present condition
   
@@ -148,7 +137,7 @@ for (arm in rownames(chr_table))
 }
 
 # Final results as percent table of GAIN, LOSS adn LOH
-oncoscan_summary<-data.frame(sample_id, chr_table, cnv)
+oncoscan_summary<-data.frame(sample_id, cnv)
 
 print (oncoscan_summary)
   
