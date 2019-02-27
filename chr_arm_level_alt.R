@@ -27,7 +27,69 @@ sample_id<-gsub(".txt","",basename(in_file))
 
 oncoscan <- read.table(in_file, 
                sep = "\t", header = TRUE, check.names = FALSE, na.strings=c("","NA"), stringsAsFactors = FALSE)
+
+# To be removed
+segment_info<-subset(oncoscan, select=c("Chromosome", "Full Location", "CN State", "Type"))
+
+###############
+#getSegments (Data, Alt)
+###############
+
+
+getSegments  <- function(Data, Alt) {
+  seg_alt <- subset(Data , Data$Type == Alt)
+  seg_alt <- subset(seg_alt, select=c("Full Location"))
+  return(seg_alt$`Full Location`)
+}
+
+seg_gain<-getSegments(oncoscan, "Gain")
+seg_loss<-getSegments(oncoscan, "Loss")
+seg_loh<-getSegments(oncoscan, "LOH")
+
+###############
+# segment tuple
+###############
+tuple  <- function(List) {
   
+  chr<-c()
+  seg_start<-c()
+  seg_end<-c()
+  
+for (line in 1:length(List))
+{
+  loc_cord<-List[line]
+  loc_cord_list<-strsplit(loc_cord,split=':', fixed=TRUE)[[1]]
+  chr[line]<-(loc_cord_list[1])
+  chr[line]<-gsub("chr.*:","",chr[line])
+  
+  coord<-(loc_cord_list[2])
+  
+  coord_list<-strsplit(coord,split='-', fixed=TRUE)[[1]]
+  
+  seg_start[line]<-as.numeric(coord_list[1])
+  seg_end[line]<-as.numeric(coord_list[2])
+}
+  df_tupule <- data.frame(
+    chrom = c(chr),
+    start = c(seg_start),
+    stop = c(seg_end)
+  )
+  
+  return (df_tupule)
+}
+
+tup_seg_gain<-tuple(seg_gain)
+tup_seg_loss<-tuple(seg_loss)
+tup_seg_loh<-tuple(seg_loh)
+  
+  print (tup_seg_gain)
+
+###############
+# hasOverlaps (segs)
+###############
+
+# Segment defination 
+segment_thr <- args[2]  
 ##########################################################
 # Data extraction from Oncoscan file and % Gain, Loss and LOH calculations
 ##########################################################  
@@ -59,7 +121,7 @@ for (arm in rownames(chr_table))
   
   ####################################################################
   # Subset input file chromosome wise
-  df_chr <- oncoscan[oncoscan$Chromosome == chr_name,]
+  df_chr <- segment_info[segment_info$Chromosome == chr_name,]
   
   # Total number of predictions (rows) from oncoscan analysis for each chromosome
   total <- length(rownames(df_chr))
@@ -68,6 +130,9 @@ for (arm in rownames(chr_table))
   loh=0
   gain=0
   loss=0
+  loh_segs <- 0
+  gain_segs <- 0
+  loss_segs <- 0
   
   if (total > 0)  # calculate % alteration if present in the oncoscan file
   {
@@ -113,19 +178,36 @@ for (arm in rownames(chr_table))
       }
       
       # Sum up the alterations for each chromosome
-      if(df_chr$Type[line] == "LOH") # if matched extract and sum loh 
+      if(df_chr$Type[line] == "LOH" && size_seq >= segment_thr) # if matched extract segments 
       {
-        loh=loh+size_seq
+       # loh=loh+size_seq
+	loh_segs <-c(loh_segs, size_seq)
       }
-      else if(df_chr$Type[line] == "Gain") # if matched extract and sum gain
+      else if(df_chr$Type[line] == "Gain" && size_seq >= segment_thr) # if matched extract segments
       {
-        gain=gain+size_seq
+       # gain=gain+size_seq
+	gain_segs <-c(gain_segs, size_seq)
       }
-      else if(df_chr$Type[line] == "Loss") # if matched extract and sum loss
+      else if(df_chr$Type[line] == "Loss" && size_seq >= segment_thr) # if matched extract segments
       {
-        loss=loss+size_seq
+       # loss=loss+size_seq
+	loss_segs <-c(loss_segs, size_seq)
       }
     } # End of for loop over each chromosome
+
+    # Sort the filtered segments
+      loh_segs <- sort (loh_segs)
+      gain_segs <- sort (gain_segs)
+      loss_segs <- sort (loss_segs)
+
+    # Sum the filtered segements based on segmemnt length cutoff
+      loh <- sum (loh_segs)
+      gain <- sum (gain_segs)
+      loss <- sum (loss_segs)
+
+
+
+
     # percent loh, gain and loss calculation for each arm
     cnv[arm, 'GAIN'] <- gain*100/arm_length
     cnv[arm, 'LOSS'] <- loss*100/arm_length
@@ -139,5 +221,5 @@ for (arm in rownames(chr_table))
 # Final results as percent table of GAIN, LOSS adn LOH
 oncoscan_summary<-data.frame(sample_id, cnv)
 
-print (oncoscan_summary)
+#print (oncoscan_summary)
   
