@@ -4,6 +4,13 @@
 # Input text file of chromosome size
 # Chromosome size, start and end based on Oncoscan coverage
 
+# Packages
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("GenomicRanges")
+
+library(GenomicRanges)
+suppressMessages(library(GenomicRanges))
+
 #Reads in the Oncoscan.na33.r1.chromStats.tsv file
 chromstats <- read.table("OncoScan.na33.r1.chromStats.tsv", header = TRUE, na.strings = 'None', stringsAsFactors = FALSE)
 chr_table <- data.frame(Chromosome = c(chromstats$Chrom, chromstats$Chrom), 
@@ -54,6 +61,7 @@ tuple  <- function(List) {
   chr<-c()
   seg_start<-c()
   seg_end<-c()
+  seg_length<-c()
   
 for (line in 1:length(List))
 {
@@ -68,11 +76,13 @@ for (line in 1:length(List))
   
   seg_start[line]<-as.numeric(coord_list[1])
   seg_end[line]<-as.numeric(coord_list[2])
+  seg_length[line]<-seg_end[line]-seg_start[line]+1
 }
   df_tupule <- data.frame(
     chrom = c(chr),
     start = c(seg_start),
-    stop = c(seg_end)
+    stop = c(seg_end),
+    length = c(seg_length)
   )
   
   return (df_tupule)
@@ -81,15 +91,51 @@ for (line in 1:length(List))
 tup_seg_gain<-tuple(seg_gain)
 tup_seg_loss<-tuple(seg_loss)
 tup_seg_loh<-tuple(seg_loh)
-  
-  print (tup_seg_gain)
+
+# make GR ranges from data frame
+
+gain_GR<-makeGRangesFromDataFrame(tup_seg_gain, keep.extra.columns = TRUE)
+loss_GR<-makeGRangesFromDataFrame(tup_seg_loss, keep.extra.columns = TRUE)
+loh_GR<-makeGRangesFromDataFrame(tup_seg_loh, keep.extra.columns = TRUE)
 
 ###############
 # hasOverlaps (segs)
+# reduce creates the smallest merged set of unique, non-overlapping pieces that cover all the bases the original set does
 ###############
+gain_GR_reduced<-reduce(gain_GR, ignore.strand=T)
+loss_GR_reduced<-reduce(loss_GR, ignore.strand=T)
+loh_GR_reduced<-reduce(loh_GR, ignore.strand=T)
 
+#################
+# Get width -length or merge fragments
+################
+gain_GR_reduced$width<-width(gain_GR_reduced)
+loss_GR_reduced$width<-width(loss_GR_reduced)
+loh_GR_reduced$width<-width(loh_GR_reduced)
+
+#################
+#Filter segments smaller than x kb
+#################
 # Segment defination 
-segment_thr <- args[2]  
+segment_thr <- args[2]
+
+gain_GR_reduced_filt<-gain_GR_reduced[gain_GR_reduced$width >=segment_thr]
+loss_GR_reduced_filt<-loss_GR_reduced[loss_GR_reduced$width >=segment_thr]
+loh_GR_reduced_filt<-loh_GR_reduced[loh_GR_reduced$width >=segment_thr]
+
+
+# Add gap lenth information as a metadata
+gain_GR_reduced_filt$gaps<-width(gaps(gain_GR_reduced_filt))
+loss_GR_reduced_filt$gaps<-width(gaps(loss_GR_reduced_filt))
+loh_GR_reduced_filt$gaps<-width(gaps(loh_GR_reduced_filt))
+
+print (gain_GR_reduced_filt)
+
+################
+# Smoothing Function
+################
+  
+
 ##########################################################
 # Data extraction from Oncoscan file and % Gain, Loss and LOH calculations
 ##########################################################  
