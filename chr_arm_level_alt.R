@@ -1,17 +1,27 @@
 #Calculate percentage chromosome copy number alteration (Gain, Loss, LOH) based on Affymetrix Oncoscan Assay 
 #Percentage alteration defined based on the chromosome length covered by oncoscan.
-
 # Input text file of chromosome size
 # Chromosome size, start and end based on Oncoscan coverage
 
+
 # Packages
 #source("https://bioconductor.org/biocLite.R")
-#biocLite("GenomicRanges")
+#biocLite("GenomicRanges",  lib="/mnt/c/Users/prac/Documents/R_lib")
+#biocLite("IRanges")
+#BiocManager::install("Repitools", version = "3.8")
 
+
+# Libraries
 library(GenomicRanges)
+library(IRanges)
 suppressMessages(library(GenomicRanges))
+library(Repitools)
+library(ggplot2)
 
+###########################################################
 #Reads in the Oncoscan.na33.r1.chromStats.tsv file
+###########################################################
+
 chromstats <- read.table("OncoScan.na33.r1.chromStats.tsv", header = TRUE, na.strings = 'None', stringsAsFactors = FALSE)
 chr_table <- data.frame(Chromosome = c(chromstats$Chrom, chromstats$Chrom), 
                         Arm = c(rep('p', dim(chromstats)[1]), rep('q', dim(chromstats)[1])),
@@ -28,6 +38,7 @@ chr_table <- chr_table[!is.na(chr_table$Length),]
 ###########################################################
 args <- commandArgs(trailingOnly = TRUE)
 
+# Input file name.txt
 in_file<-args[1]
 
 sample_id<-gsub(".txt","",basename(in_file))
@@ -35,23 +46,34 @@ sample_id<-gsub(".txt","",basename(in_file))
 oncoscan <- read.table(in_file, 
                sep = "\t", header = TRUE, check.names = FALSE, na.strings=c("","NA"), stringsAsFactors = FALSE)
 
-# To be removed
-segment_info<-subset(oncoscan, select=c("Chromosome", "Full Location", "CN State", "Type"))
+# Filter out not broad enough segments defined by threshold segment_thr, mega base pair range
+segment_thr<-args[2]
+
+# minimum gap allowed between adjcent segments
+min_gap<-args[3]
+
+##############################################################################################################
+# Temporary hard coded values to be removed 
+oncoscan <- read.table("test.txt", 
+                       sep = "\t", header = TRUE, check.names = FALSE, na.strings=c("","NA"), stringsAsFactors = FALSE)
+
+sample_id<-"test"
+segment_thr<-1000000
+min_gap<-2000
+
+##############################################################################################################
+# Functions 
+############################################################
 
 ###############
-#getSegments (Data, Alt)
+# getSegments 
 ###############
-
 
 getSegments  <- function(Data, Alt) {
   seg_alt <- subset(Data , Data$Type == Alt)
   seg_alt <- subset(seg_alt, select=c("Full Location"))
   return(seg_alt$`Full Location`)
 }
-
-seg_gain<-getSegments(oncoscan, "Gain")
-seg_loss<-getSegments(oncoscan, "Loss")
-seg_loh<-getSegments(oncoscan, "LOH")
 
 ###############
 # segment tuple
@@ -68,8 +90,8 @@ for (line in 1:length(List))
   loc_cord<-List[line]
   loc_cord_list<-strsplit(loc_cord,split=':', fixed=TRUE)[[1]]
   chr[line]<-(loc_cord_list[1])
-  chr[line]<-gsub("chr.*:","",chr[line])
-  
+  chr[line]<-gsub("chr","",chr[line])
+
   coord<-(loc_cord_list[2])
   
   coord_list<-strsplit(coord,split='-', fixed=TRUE)[[1]]
@@ -88,6 +110,167 @@ for (line in 1:length(List))
   return (df_tupule)
 }
 
+################
+# Smoothing 
+################
+smoothing  <- function(GR, gap) {
+ 
+# Add buffer region upstream and downstream of GRranges
+start(GR) <- start(GR) - gap
+end(GR) <- end(GR) + gap
+
+# Smoothing: Reduce to join the buffered gragments
+GR_smooth<-reduce(GR, ignore.strand=T)
+
+# Remove the added buffer after smoothing
+
+start(GR_smooth) <- start(GR_smooth) + gap
+end(GR_smooth) <- end(GR_smooth) - gap
+
+return(GR_smooth)
+}
+
+###############
+# Plot ranges 
+###############
+
+plotRanges <- function(x, xlim = x, main = deparse(substitute(x)),
+                       col = "black", sep = 0.5, ...) 
+{
+  height <- 1
+  if (is(xlim, "Ranges"))
+    xlim <- c(min(start(xlim)), max(end(xlim)))
+  bins <- disjointBins(IRanges(start(x), end(x) + 1))
+  plot.new()
+  plot.window(xlim, c(0, max(bins)*(height + sep)))
+  ybottom <- bins * (sep + height) - height
+  rect(start(x)-0.5, ybottom, end(x)+0.5, ybottom + height, col = col, ...)
+  title(main)
+  axis(1)
+}
+
+##################
+# % Alteration
+##################
+
+percent_alt <- function(DF, ALT) {
+  
+  alt_type<-ALT
+  
+  #Init data table
+  if (alt_type %in% "GAIN")
+  {
+    cnv <- data.frame(row.names = rownames(chr_table), 
+                      GAIN = rep(0, dim(chr_table)[1]))
+  }
+  else if (alt_type %in% "LOSS")
+  {
+    cnv <- data.frame(row.names = rownames(chr_table), 
+                      LOSS = rep(0, dim(chr_table)[1]))
+  }
+  else if (alt_type %in% "LOH")
+  {
+    cnv <- data.frame(row.names = rownames(chr_table), 
+                      LOH = rep(0, dim(chr_table)[1]))
+  }  
+  
+  
+  for (arm in rownames(chr_table))
+  {
+    chr_name <- chr_table[arm, 'Chromosome']
+    
+    chr_arm <- chr_table[arm, 'Arm']
+    
+    arm_start <- chr_table[arm, 'Arm_str']
+    arm_start <- arm_start-2               #Buffer start site 2bp 
+    
+    arm_end <- chr_table[arm, 'Arm_end']
+    arm_end <- arm_end+2                #Buffer end site 2bp 
+    
+    #arm_length<-arm_end-arm_start #Use the length column from chr_table
+    arm_length <- chr_table[arm, 'Length']+4
+    
+    ####################################################################
+    # Subset input file chromosome wise
+    
+    df_chr <- DF[DF$chr %in% chr_name,]
+    
+    # Total number of predictions (rows) from oncoscan analysis for each chromosome
+    total <- length(rownames(df_chr))
+    
+    # Defination and Initialization of percent loh, gain and loss vectors
+    loh=0
+    gain=0
+    loss=0
+    alt_segs <- 0
+    
+    
+    if (total > 0)  # calculate % alteration if present in the oncoscan file
+    {
+      for (line in 1:total) # start of for loop over each chromosome
+      {
+        # For each alteration line extract location of the segment altered (segment start and end) 
+        
+        seg_start<-as.numeric(df_chr$start[line])
+        seg_end<-as.numeric(df_chr$end[line])
+        
+        
+        # Define the length of the altered segment based on its location with respect to the chromosome arms
+        if (chr_arm == "p")
+        {
+          if (seg_end <= arm_end)
+          {
+            size_seq=seg_end-seg_start+1
+          }
+          else if (seg_end > arm_end && seg_start < arm_end)
+          {
+            size_seq=arm_end-seg_start+1
+          }
+          else {
+            size_seq=0
+          }
+        }
+        else if (chr_arm == "q")
+        {
+          if (seg_start >= arm_start)
+          {
+            size_seq=seg_end-seg_start
+          }
+          else if (seg_start < arm_start && seg_end > arm_start)
+          {
+            size_seq=seg_end-arm_start
+          }
+          else {
+            size_seq=0
+          }
+        }
+        
+        # Sum up the alterations for each chromosome
+        alt_segs <-c(alt_segs, size_seq)
+        
+      } # End of for loop over each chromosome
+      
+      # Sum all the alterations
+      totla_alt <- sum (alt_segs)
+      
+      # percent alteration calculation for each arm
+      cnv[arm, alt_type] <- totla_alt*100/arm_length
+      
+    } # End of if alteration  present condition
+    
+  }
+  return(cnv)
+  
+} # End of function percent alteration
+
+##############################################################################################################
+# Data extraction and transformation
+#############################################
+
+seg_gain<-getSegments(oncoscan, "Gain")
+seg_loss<-getSegments(oncoscan, "Loss")
+seg_loh<-getSegments(oncoscan, "LOH")
+
 tup_seg_gain<-tuple(seg_gain)
 tup_seg_loss<-tuple(seg_loss)
 tup_seg_loh<-tuple(seg_loh)
@@ -100,172 +283,51 @@ loh_GR<-makeGRangesFromDataFrame(tup_seg_loh, keep.extra.columns = TRUE)
 
 ###############
 # hasOverlaps (segs)
-# reduce creates the smallest merged set of unique, non-overlapping pieces that cover all the bases the original set does
+# Reduce
 ###############
 gain_GR_reduced<-reduce(gain_GR, ignore.strand=T)
 loss_GR_reduced<-reduce(loss_GR, ignore.strand=T)
 loh_GR_reduced<-reduce(loh_GR, ignore.strand=T)
 
 #################
-# Get width -length or merge fragments
+# Get width of the merge fragments
 ################
-gain_GR_reduced$width<-width(gain_GR_reduced)
-loss_GR_reduced$width<-width(loss_GR_reduced)
-loh_GR_reduced$width<-width(loh_GR_reduced)
+gain_GR_reduced$dist<-width(gain_GR_reduced)
+loss_GR_reduced$dist<-width(loss_GR_reduced)
+loh_GR_reduced$dist<-width(loh_GR_reduced)
 
 #################
 #Filter segments smaller than x kb
 #################
-# Segment defination 
-segment_thr <- args[2]
 
-gain_GR_reduced_filt<-gain_GR_reduced[gain_GR_reduced$width >=segment_thr]
-loss_GR_reduced_filt<-loss_GR_reduced[loss_GR_reduced$width >=segment_thr]
-loh_GR_reduced_filt<-loh_GR_reduced[loh_GR_reduced$width >=segment_thr]
+gain_GR_reduced_filt<-gain_GR_reduced[gain_GR_reduced$dist >=segment_thr]
+loss_GR_reduced_filt<-loss_GR_reduced[loss_GR_reduced$dist >=segment_thr]
+loh_GR_reduced_filt<-loh_GR_reduced[loh_GR_reduced$dist >=segment_thr]
 
+#################
+#Perform smoothing
+#################
+gain_GR_reduced_filt_smooth<-smoothing(gain_GR_reduced_filt, min_gap)
+loss_GR_reduced_filt_smooth<-smoothing(loss_GR_reduced_filt, min_gap)
+loh_GR_reduced_filt_smooth<-smoothing(loh_GR_reduced_filt, min_gap)
 
-# Add gap lenth information as a metadata
-gain_GR_reduced_filt$gaps<-width(gaps(gain_GR_reduced_filt))
-loss_GR_reduced_filt$gaps<-width(gaps(loss_GR_reduced_filt))
-loh_GR_reduced_filt$gaps<-width(gaps(loh_GR_reduced_filt))
+# Grange to dataframe conversion
+gain_df<-annoGR2DF(gain_GR_reduced_filt_smooth)
+loss_df<-annoGR2DF(loss_GR_reduced_filt_smooth)
+loh_df<-annoGR2DF(loh_GR_reduced_filt_smooth)
 
-print (gain_GR_reduced_filt)
+#################
+# % Gain, Loss and LOH calculations
+#################
 
-################
-# Smoothing Function
-################
-  
-
-##########################################################
-# Data extraction from Oncoscan file and % Gain, Loss and LOH calculations
-##########################################################  
-#Init data table
-cnv <- data.frame(row.names = rownames(chr_table), 
-                  LOH = rep(0, dim(chr_table)[1]), 
-                  GAIN = rep(0, dim(chr_table)[1]), 
-                  LOSS = rep(0, dim(chr_table)[1]))
-
-
-for (arm in rownames(chr_table))
-{
-  chr_name <- chr_table[arm, 'Chromosome']
-  #chr_name<-as.vector(chr_name)
-  
-  chr_arm <- chr_table[arm, 'Arm']
-  #chr_arm<-as.vector(chr_arm)
-  
-  arm_start <- chr_table[arm, 'Arm_str']
-  #arm_start<-as.numeric(arm_start)
-  arm_start <- arm_start-2               #Buffer start site 2bp 
-  
-  arm_end <- chr_table[arm, 'Arm_end']
-  #arm_end<-as.numeric(arm_end)
-  arm_end <- arm_end+2                #Buffer end site 2bp 
-
-  #arm_length<-arm_end-arm_start #Use the length column from chr_table
-  arm_length <- chr_table[arm, 'Length']+4
-  
-  ####################################################################
-  # Subset input file chromosome wise
-  df_chr <- segment_info[segment_info$Chromosome == chr_name,]
-  
-  # Total number of predictions (rows) from oncoscan analysis for each chromosome
-  total <- length(rownames(df_chr))
-  
-  # Defination and Initialization of percent loh, gain and loss vectors
-  loh=0
-  gain=0
-  loss=0
-  loh_segs <- 0
-  gain_segs <- 0
-  loss_segs <- 0
-  
-  if (total > 0)  # calculate % alteration if present in the oncoscan file
-  {
-    for (line in 1:total) # start of for loop over each chromosome
-    {
-      # For each alteration line extract location of the segment altered (segment start and end) 
-      loc<-df_chr$`Full Location`[line]
-      loc_cord<-gsub("chr.*:","",loc)
-      loc_cord_list<-strsplit(loc_cord,split='-', fixed=TRUE)[[1]]
-      
-      seg_start<-as.numeric(loc_cord_list[1])
-      seg_end<-as.numeric(loc_cord_list[2])
-
-
-      # Define the length of the altered segment based on its location with respect to the chromosome arms
-      if (chr_arm == "p")
-      {
-        if (seg_end <= arm_end)
-        {
-          size_seq=seg_end-seg_start+1
-        }
-        else if (seg_end > arm_end && seg_start < arm_end)
-        {
-          size_seq=arm_end-seg_start+1
-        }
-        else {
-          size_seq=0
-        }
-      }
-      else if (chr_arm == "q")
-      {
-        if (seg_start >= arm_start)
-        {
-          size_seq=seg_end-seg_start
-        }
-        else if (seg_start < arm_start && seg_end > arm_start)
-        {
-          size_seq=seg_end-arm_start
-        }
-        else {
-          size_seq=0
-        }
-      }
-      
-      # Sum up the alterations for each chromosome
-      if(df_chr$Type[line] == "LOH" && size_seq >= segment_thr) # if matched extract segments 
-      {
-       # loh=loh+size_seq
-	loh_segs <-c(loh_segs, size_seq)
-      }
-      else if(df_chr$Type[line] == "Gain" && size_seq >= segment_thr) # if matched extract segments
-      {
-       # gain=gain+size_seq
-	gain_segs <-c(gain_segs, size_seq)
-      }
-      else if(df_chr$Type[line] == "Loss" && size_seq >= segment_thr) # if matched extract segments
-      {
-       # loss=loss+size_seq
-	loss_segs <-c(loss_segs, size_seq)
-      }
-    } # End of for loop over each chromosome
-
-    # Sort the filtered segments
-      loh_segs <- sort (loh_segs)
-      gain_segs <- sort (gain_segs)
-      loss_segs <- sort (loss_segs)
-
-    # Sum the filtered segements based on segmemnt length cutoff
-      loh <- sum (loh_segs)
-      gain <- sum (gain_segs)
-      loss <- sum (loss_segs)
-
-
-
-
-    # percent loh, gain and loss calculation for each arm
-    cnv[arm, 'GAIN'] <- gain*100/arm_length
-    cnv[arm, 'LOSS'] <- loss*100/arm_length
-    cnv[arm, 'LOH'] <- loh*100/arm_length
-    
-  } # End of if alteration  present condition
-  
-  
-}
+gain_per<-percent_alt(gain_df,'GAIN')
+loss_per<-percent_alt(loss_df,'LOSS')
+loh_per<-percent_alt(loh_df,'LOH')
 
 # Final results as percent table of GAIN, LOSS adn LOH
-oncoscan_summary<-data.frame(sample_id, cnv)
 
-#print (oncoscan_summary)
-  
+oncoscan_summary<-cbind(gain_per, loss_per, loh_per)
+
+print (oncoscan_summary)
+
+
