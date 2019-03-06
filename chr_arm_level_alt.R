@@ -330,4 +330,7 @@ oncoscan_summary<-cbind(gain_per, loss_per, loh_per)
 
 print (oncoscan_summary)
 
+# segment visualization
 
+gir2 = gain_GR[seqnames(gain_GR) == '13']
+plotRanges(gir2,xlim=c(19084823,115103150))
