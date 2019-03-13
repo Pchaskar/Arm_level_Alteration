@@ -1,3 +1,4 @@
 tests/
 test*
+tmp*
 .Rhistory
