@@ -3,53 +3,159 @@
 ############################################################
 
 ###############
-# getSegments 
+# Format data, obtain chromosome arm names e.g. p or q
 ###############
-
-getSegments  <- function(Data, Alt) {
-  seg_alt <- subset(Data , Data$Type == Alt)
-  seg_alt <- subset(seg_alt, select=c("Full Location", "CN State"))
-  return(seg_alt)
-}
-
-###############
-# segment tuple
-###############
-
-tuple  <- function(List) {
+reformat  <- function(List) {
   
-  chr<-c()
+  seg_chr<-c()
   seg_start<-c()
   seg_end<-c()
   seg_length<-c()
   seg_cn<-c()
+  seg_alt<-c()
+  seg_name<-c()
+  seg_arm<-c()
+  mod_seg_start<-c()
+  mod_seg_end<-c()
+  seg_name<-c()
+  
   
   for (line in 1:nrow(List))
   {
+    # Extract chr no, start and end
+    
+    # Full location from oncoscan file
     loc_cord<-List$`Full Location`[line]
     loc_cord_list<-strsplit(loc_cord,split=':', fixed=TRUE)[[1]]
-    chr[line]<-(loc_cord_list[1])
-    chr[line]<-gsub("chr","",chr[line])
     
+    # seg chr no
+    chr<-(loc_cord_list[1])
+    chr<-gsub("chr","",chr)
+    seg_chr[line]<-as.character(chr)
+    
+    
+    # seg coordinates
     coord<-(loc_cord_list[2])
-    
     coord_list<-strsplit(coord,split='-', fixed=TRUE)[[1]]
     
+    # seg start and end based on oncoscan
     seg_start[line]<-as.numeric(coord_list[1])
     seg_end[line]<-as.numeric(coord_list[2])
-    seg_length[line]<-seg_end[line]-seg_start[line]+1
+    
+    # seg copy number and type of alteration
     seg_cn[line]<-List$`CN State`[line]
+    seg_alt[line]<-List$Type[line]
+    
+    # Subset chromosome table based on chromosome number
+    chr_tab_sub <- chr_table[chr_table$Chromosome %in% seg_chr[line],]
+    
+    
+    for (i in 1:nrow(chr_tab_sub))
+    {
+      start<-c()
+      end<-c()
+      arm<-c()
+      length<-c()
+      
+      # chrm name, arm , start and end information based on chr_table
+      chr_arm<-as.character(chr_tab_sub$Arm[i])
+      chr_name<-as.character(chr_tab_sub$Chromosome[i])
+      arm_start<-chr_tab_sub$Arm_str[i]
+      arm_end<-chr_tab_sub$Arm_end[i]
+      
+      if (chr_arm == "p" && chr_name %in% seg_chr[line])
+      {
+        if (seg_end[line] <= arm_end)
+        {
+          length[i]<-seg_end[line]-seg_start[line]+1
+          start[i]<-seg_start[line]
+          end[i]<-seg_end[line]
+          arm[i]<-"p"
+        }
+        else if (seg_end[line] > arm_end && seg_start[line] < arm_end)
+        {
+          length[i]<-arm_end-seg_start[line]+1
+          start[i]<-seg_start[line]
+          end[i]<-arm_end
+          arm[i]<-"p"
+        }
+        else {
+          length[i]<-"0"
+          start[i]<-"0"
+          end[i]<-"0"
+          arm[i]<-"p"
+        }
+        
+        if (length[i] > 0)
+        {
+          mod_seg_start[line]<-start[i]
+          mod_seg_end[line]<-end[i]
+          seg_length[line]<-length[i]
+          seg_arm[line]<-arm[i]
+        }
+        
+      }
+      
+      else if (chr_arm == "q" && chr_name %in% seg_chr[line])
+      {
+        if (seg_start[line] >= arm_start)
+        {
+          length[i]<-seg_end[line]-seg_start[line]
+          start[i]<-seg_start[line]
+          end[i]<-seg_end[line]
+          arm[i]<-"q"
+        }
+        else if (seg_start[line] < arm_start && seg_end[line] > arm_start)
+        {
+          length[i]<-seg_end[line]-arm_start
+          start[i]<-arm_start
+          end[i]<-seg_end[line]
+          arm[i]<-"q"
+        }
+        else {
+          length[i]<-"0"
+          start[i]<-"0"
+          end[i]<-"0"
+          arm[i]<-"q"
+        }
+      }  
+      
+      if (length[i] > 0)
+      {
+        mod_seg_start[line]<-start[i]
+        mod_seg_end[line]<-end[i]
+        seg_length[line]<-length[i]
+        seg_arm[line]<-arm[i]
+        seg_name[line]<-paste0(seg_chr[line], seg_arm[line]) #rownames are the full arm name (e.g. '12p')
+      }
+      
+    }
+    
   }
   df_tupule <- data.frame(
-    chrom = c(chr),
-    start = c(seg_start),
-    stop = c(seg_end),
+    seg=c(seg_name),
+    start = c(mod_seg_start),
+    stop = c(mod_seg_end),
     length = c(seg_length),
-    cn=c(seg_cn)
+    chrom = c(seg_chr),
+    arm = c(seg_arm),
+    cn=c(seg_cn),
+    type=c(seg_alt)
   )
+  
   
   return (df_tupule)
 }
+
+###############
+# getSegments 
+###############
+
+getSegments  <- function(Data, Alt) {
+  seg_alt <- subset(Data , Data$type == Alt)
+  return(seg_alt)
+}
+
 ################
 # Smoothing 
 ################

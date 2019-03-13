@@ -64,17 +64,23 @@ sample_id<-"test"
 segment_thr<-1000000
 min_gap<-2000
 
-##############################################################################################################
+#####################################
 # Data extraction and transformation
-#############################################
+#####################################
 
-seg_gain<-getSegments(oncoscan, "Gain")
-seg_loss<-getSegments(oncoscan, "Loss")
-seg_loh<-getSegments(oncoscan, "LOH")
+###############
+# Format data, obtain chromosome arm names e.g. p or q
+###############
 
-tup_seg_gain<-tuple(seg_gain)
-tup_seg_loss<-tuple(seg_loss)
-tup_seg_loh<-tuple(seg_loh)
+oncoscan_format<-reformat(oncoscan)
+
+###############
+# getSegments 
+###############
+
+tup_seg_gain<-getSegments(oncoscan_format, "Gain")
+tup_seg_loss<-getSegments(oncoscan_format, "Loss")
+tup_seg_loh<-getSegments(oncoscan_format, "LOH")
 
 # make GR ranges from data frame
 
@@ -139,4 +145,3 @@ gir2 = loss_GR[seqnames(loss_GR) == '13']
 plotRanges(gir2,xlim=c(19084823,115103150))
 
 ##########################
-
