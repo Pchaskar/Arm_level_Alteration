@@ -5,7 +5,7 @@
 ###############
 # Format data, obtain chromosome arm names e.g. p or q
 ###############
-reformat  <- function(List) {
+getSegments  <- function(List) {
   
   seg_chr<-c()
   seg_start<-c()
@@ -44,7 +44,23 @@ reformat  <- function(List) {
     
     # seg copy number and type of alteration
     seg_cn[line]<-List$`CN State`[line]
-    seg_alt[line]<-List$Type[line]
+    if (is.na(seg_cn[line]))
+    {
+      seg_alt[line]<-"LOH"
+    }
+    else if (seg_cn[line] >2 && seg_cn[line] <5)
+    {
+      seg_alt[line]<-"Gain"
+    }
+    else if (seg_cn[line] >5)
+    {
+      seg_alt[line]<-"Ampli"
+    }
+    else if (seg_cn[line] <2)
+    {
+      seg_alt[line]<-"Loss"
+    }  
+    #seg_alt[line]<-List$Type[line]
     
     # Subset chromosome table based on chromosome number
     chr_tab_sub <- chr_table[chr_table$Chromosome %in% seg_chr[line],]
@@ -133,14 +149,15 @@ reformat  <- function(List) {
     
   }
   df_tupule <- data.frame(
+    chrom = c(seg_chr),
     seg=c(seg_name),
     start = c(mod_seg_start),
     stop = c(mod_seg_end),
-    length = c(seg_length),
-    chrom = c(seg_chr),
-    arm = c(seg_arm),
-    cn=c(seg_cn),
-    type=c(seg_alt)
+#    length = c(seg_length),
+#    chrom = c(seg_chr),
+#    arm = c(seg_arm),
+    type=c(seg_alt),
+    cn=c(seg_cn)
   )
   
   
@@ -151,14 +168,62 @@ reformat  <- function(List) {
 # getSegments 
 ###############
 
-getSegments  <- function(Data, Alt) {
+segments_alt  <- function(Data, Alt) {
   seg_alt <- subset(Data , Data$type == Alt)
   return(seg_alt)
 }
 
-################
-# Smoothing 
-################
+###############
+# hasOverlaps (segs)
+###############
+
+hasOverlaps <- function(GR) {
+
+  #findoverlaps
+  hits <- findOverlaps(GR,GR, type="any")
+  
+  # remove the ones where an interval is being compared to itself
+  hits <- hits[queryHits(hits) != subjectHits(hits)]
+
+  ov<-lengths(hits)
+  
+  keep_ov<-ov==0
+  
+  test_ol<-all(keep_ov)
+  
+  return(test_ol)
+}
+
+###############
+# sum(segs)
+###############
+sum <- function(GR, olaps) {
+  
+  if (olaps=="TRUE")
+  {
+    sum_seq<-reduce(GR, ignore.strand=T)
+    sum_seq$dist<-width(sum_seq)
+  }
+  return(sum_seq)
+ 
+}
+
+#################
+#trim(segs, x)
+#################
+
+trim <- function (GR,X)
+  
+{
+  trimmed_seg<-GR[GR$dist >=X]
+  
+  return (trimmed_seg)
+}
+
+
+#################
+#smooth(segs, x)
+#################
 smoothing  <- function(GR, gap) {
   
   # Add buffer region upstream and downstream of GRranges
@@ -209,6 +274,11 @@ percent_alt <- function(DF, ALT) {
     cnv <- data.frame(row.names = rownames(chr_table), 
                       GAIN = rep(0, dim(chr_table)[1]))
   }
+  else if (alt_type %in% "Ampli")
+  {
+    cnv <- data.frame(row.names = rownames(chr_table), 
+                      Ampli = rep(0, dim(chr_table)[1]))
+  }
   else if (alt_type %in% "LOSS")
   {
     cnv <- data.frame(row.names = rownames(chr_table), 
@@ -248,6 +318,7 @@ percent_alt <- function(DF, ALT) {
     loh=0
     gain=0
     loss=0
+    ampli=0
     alt_segs <- 0
     
     

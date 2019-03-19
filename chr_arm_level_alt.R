@@ -17,7 +17,6 @@ library(IRanges)
 library(Repitools)
 library(ggplot2)
 
-
 # Functions
 source("functions_arm_level_alt.R")
 
@@ -61,79 +60,97 @@ oncoscan <- read.table("test.txt",
                        sep = "\t", header = TRUE, check.names = FALSE, na.strings=c("","NA"), stringsAsFactors = FALSE)
 
 sample_id<-"test"
-segment_thr<-1000000
+segment_thr<-1000
 min_gap<-2000
 
-#####################################
 # Data extraction and transformation
-#####################################
 
 ###############
-# Format data, obtain chromosome arm names e.g. p or q
+# getSegments
+# list of GenomicRanges with one extra column for the copy number and another for the LOH.
 ###############
 
-oncoscan_format<-reformat(oncoscan)
+segments<-getSegments(oncoscan)
 
 ###############
-# getSegments 
+# Segment list based on Alteration
 ###############
 
-tup_seg_gain<-getSegments(oncoscan_format, "Gain")
-tup_seg_loss<-getSegments(oncoscan_format, "Loss")
-tup_seg_loh<-getSegments(oncoscan_format, "LOH")
+tup_seg_gain<-segments_alt(segments, "Gain")
+tup_seg_ampli<-segments_alt(segments, "Ampli")
+tup_seg_loss<-segments_alt(segments, "Loss")
+tup_seg_loh<-segments_alt(segments, "LOH")
 
 # make GR ranges from data frame
 
 gain_GR<-makeGRangesFromDataFrame(tup_seg_gain, keep.extra.columns = TRUE)
+ampli_GR<-makeGRangesFromDataFrame(tup_seg_ampli, keep.extra.columns = TRUE)
 loss_GR<-makeGRangesFromDataFrame(tup_seg_loss, keep.extra.columns = TRUE)
 loh_GR<-makeGRangesFromDataFrame(tup_seg_loh, keep.extra.columns = TRUE)
 
 ###############
 # hasOverlaps (segs)
-# Reduce
+# takes as input a list of segments and returns true if there exists two 
+# overlapping segments within the list. Returns false otherwise.
+# TRUE: No overlap
+# False: Has overlap
 ###############
-gain_GR_reduced<-reduce(gain_GR, ignore.strand=T)
-loss_GR_reduced<-reduce(loss_GR, ignore.strand=T)
-loh_GR_reduced<-reduce(loh_GR, ignore.strand=T)
+olaps_gain<-hasOverlaps(gain_GR)
+olaps_ampli<-hasOverlaps(ampli_GR)
+olaps_loss<-hasOverlaps(loss_GR)
+olaps_loh<-hasOverlaps(loh_GR)
+
+###############
+# sum(segs)
+# takes as input a list of segments and returns the sum of the length of all segments. 
+# Segments are expected to be non-overlapping
+###############
+gain_GR_sum<-sum(gain_GR, olaps_gain)
+ampli_GR_sum<-sum(ampli_GR, olaps_ampli)
+loss_GR_sum<-sum(loss_GR, olaps_loss)
+loh_GR_sum<-sum(loh_GR, olaps_loh)
 
 #################
-# Get width of the merge fragments
-################
-gain_GR_reduced$dist<-width(gain_GR_reduced)
-loss_GR_reduced$dist<-width(loss_GR_reduced)
-loh_GR_reduced$dist<-width(loh_GR_reduced)
-
-#################
-#Filter segments smaller than x kb
+# trim(segs, x)
+# takes as input a list of segments 'segs' and returns a list of all segments larger than 'x' Kb. x as to be >=0.
 #################
 
-gain_GR_reduced_filt<-gain_GR_reduced[gain_GR_reduced$dist >=segment_thr]
-loss_GR_reduced_filt<-loss_GR_reduced[loss_GR_reduced$dist >=segment_thr]
-loh_GR_reduced_filt<-loh_GR_reduced[loh_GR_reduced$dist >=segment_thr]
+gain_GR_filt<-trim(gain_GR_sum,segment_thr)
+ampli_GR_filt<-trim(ampli_GR_sum,segment_thr)
+loss_GR_filt<-trim(loss_GR_sum,segment_thr)
+loh_GR_filt<-trim(loh_GR_sum,segment_thr)
 
 #################
-#Perform smoothing
+#smooth(segs, x)
 #################
-gain_GR_reduced_filt_smooth<-smoothing(gain_GR_reduced_filt, min_gap)
-loss_GR_reduced_filt_smooth<-smoothing(loss_GR_reduced_filt, min_gap)
-loh_GR_reduced_filt_smooth<-smoothing(loh_GR_reduced_filt, min_gap)
+gain_GR_smooth<-smoothing(gain_GR_filt, min_gap)
+ampli_GR_smooth<-smoothing(ampli_GR_filt, min_gap)
+loss_GR_smooth<-smoothing(loss_GR_filt, min_gap)
+loh_GR_smooth<-smoothing(loh_GR_filt, min_gap)
+
+##################
+#longest(segs)
+##################
+
 
 # Grange to dataframe conversion
-gain_df<-annoGR2DF(gain_GR_reduced_filt_smooth)
-loss_df<-annoGR2DF(loss_GR_reduced_filt_smooth)
-loh_df<-annoGR2DF(loh_GR_reduced_filt_smooth)
+gain_df<-annoGR2DF(gain_GR_smooth)
+ampli_df<-annoGR2DF(ampli_GR_smooth)
+loss_df<-annoGR2DF(loss_GR_smooth)
+loh_df<-annoGR2DF(loh_GR_smooth)
 
 #################
 # % Gain, Loss and LOH calculations
 #################
 
 gain_per<-percent_alt(gain_df,'GAIN')
+ampli_per<-percent_alt(ampli_df,'Ampli')
 loss_per<-percent_alt(loss_df,'LOSS')
 loh_per<-percent_alt(loh_df,'LOH')
 
 # Final results as percent table of GAIN, LOSS adn LOH
 
-oncoscan_summary<-cbind(gain_per, loss_per, loh_per)
+oncoscan_summary<-cbind(gain_per, ampli_per, loss_per, loh_per)
 
 print (oncoscan_summary)
 
@@ -141,7 +158,7 @@ print (oncoscan_summary)
 # segment visualization
 #################
 
-gir2 = loss_GR[seqnames(loss_GR) == '13']
-plotRanges(gir2,xlim=c(19084823,115103150))
+gir2 = loss_GR_smooth[seqnames(loss_GR_smooth) == '3']
+plotRanges(gir2,xlim=c(63411,90473621))
 
 ##########################
