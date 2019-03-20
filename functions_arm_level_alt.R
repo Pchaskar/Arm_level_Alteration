@@ -3,10 +3,16 @@
 ############################################################
 
 ###############
-# Format data, obtain chromosome arm names e.g. p or q
+# 1: getSegments
 ###############
+# list of GenomicRanges with one extra column for the copy number and another for the LOH.
+
+
+# Format data, obtain chromosome arm names e.g. p or q
+
 getSegments  <- function(List) {
   
+  # Initialize necessary variables
   seg_chr<-c()
   seg_start<-c()
   seg_end<-c()
@@ -22,17 +28,17 @@ getSegments  <- function(List) {
   
   for (line in 1:nrow(List))
   {
-    # Extract chr no, start and end
+    ######## 
+    #Start: Extract chr no, start, end, copy number
     
     # Full location from oncoscan file
     loc_cord<-List$`Full Location`[line]
     loc_cord_list<-strsplit(loc_cord,split=':', fixed=TRUE)[[1]]
     
-    # seg chr no
+    # seg chr no based on oncoscan file
     chr<-(loc_cord_list[1])
     chr<-gsub("chr","",chr)
     seg_chr[line]<-as.character(chr)
-    
     
     # seg coordinates
     coord<-(loc_cord_list[2])
@@ -43,6 +49,8 @@ getSegments  <- function(List) {
     seg_end[line]<-as.numeric(coord_list[2])
     
     # seg copy number and type of alteration
+    # Define alteration:  copy gain (2<n<5), copy loss (n<2), LOH and amplification (n>=5)
+    
     seg_cn[line]<-List$`CN State`[line]
     if (is.na(seg_cn[line]))
     {
@@ -59,8 +67,10 @@ getSegments  <- function(List) {
     else if (seg_cn[line] <2)
     {
       seg_alt[line]<-"Loss"
-    }  
-    #seg_alt[line]<-List$Type[line]
+    }
+    
+    ########
+    # End: Extract chr no, start, end, copy number
     
     # Subset chromosome table based on chromosome number
     chr_tab_sub <- chr_table[chr_table$Chromosome %in% seg_chr[line],]
@@ -149,13 +159,9 @@ getSegments  <- function(List) {
     
   }
   df_tupule <- data.frame(
-    chrom = c(seg_chr),
-    seg=c(seg_name),
+    seqnames=c(seg_name),
     start = c(mod_seg_start),
     stop = c(mod_seg_end),
-#    length = c(seg_length),
-#    chrom = c(seg_chr),
-#    arm = c(seg_arm),
     type=c(seg_alt),
     cn=c(seg_cn)
   )
@@ -164,9 +170,11 @@ getSegments  <- function(List) {
   return (df_tupule)
 }
 
+
 ###############
-# getSegments 
+# segments_alt()
 ###############
+# Segment list based on Alteration
 
 segments_alt  <- function(Data, Alt) {
   seg_alt <- subset(Data , Data$type == Alt)
@@ -176,6 +184,8 @@ segments_alt  <- function(Data, Alt) {
 ###############
 # hasOverlaps (segs)
 ###############
+# TRUE: No overlap
+# False: Has overlap
 
 hasOverlaps <- function(GR) {
 
@@ -195,8 +205,11 @@ hasOverlaps <- function(GR) {
 }
 
 ###############
-# sum(segs)
+# sum_seg(segs)
 ###############
+# takes as input a list of segments and returns the sum of the length of all segments. 
+# Segments are expected to be non-overlapping
+
 sum_seg <- function(GR, olaps) {
   
   if (olaps=="TRUE")
@@ -211,6 +224,8 @@ sum_seg <- function(GR, olaps) {
 #################
 #trim(segs, x)
 #################
+# takes as input a list of segments 'segs' and returns a list of all segments larger than 'x' Kb. x as to be >=0.
+
 
 trim <- function (GR,X)
   
@@ -247,9 +262,26 @@ smoothing  <- function(GR, gap) {
 ##################
 longest <- function (GR) {
   
+  # calculate distance
   GR$dist<-width(GR)
   
-  return(GR)
+  # Sort based on distance
+  GR<-sort(GR,  decreasing=TRUE, by = ~dist)
+  
+  # total sequences
+  total<-unique(as.character(seqnames(GR)))
+  
+  # Define empty Grange
+  Gr_long <- GRanges()
+  
+  for (i in 1:length(total))
+  {
+    sub_gr<-GR[seqnames(GR) == total[i]]
+    sub_long<-head(sub_gr, n=1)
+    Gr_long <- append(Gr_long, sub_long)
+  }
+  
+  return(Gr_long)
 }
 
 ###############
@@ -275,7 +307,7 @@ plotRanges <- function(x, xlim = x, main = deparse(substitute(x)),
 # % Alteration
 ##################
 
-percent_alt <- function(DF, ALT) {
+percent_alt <- function(GR, ALT) {
   
   alt_type<-ALT
   
@@ -285,10 +317,10 @@ percent_alt <- function(DF, ALT) {
     cnv <- data.frame(row.names = rownames(chr_table), 
                       GAIN = rep(0, dim(chr_table)[1]))
   }
-  else if (alt_type %in% "Ampli")
+  else if (alt_type %in% "AMPLI")
   {
     cnv <- data.frame(row.names = rownames(chr_table), 
-                      Ampli = rep(0, dim(chr_table)[1]))
+                      AMPLI = rep(0, dim(chr_table)[1]))
   }
   else if (alt_type %in% "LOSS")
   {
@@ -302,90 +334,31 @@ percent_alt <- function(DF, ALT) {
   }  
   
   
-  for (arm in rownames(chr_table))
+  # Check if GR is not empty
+  
+  total <-length(GR)
+
+  if (total > 0)  # calculate % alteration if present in the oncoscan file
   {
-    chr_name <- chr_table[arm, 'Chromosome']
+  # Loop over each chromosome Arm
+  
+  for (i in 1:nrow(chr_table))
+  {
+    sub_gr<-c()
+    sum_gr<-c()
     
-    chr_arm <- chr_table[arm, 'Arm']
+    # chrm name, arm , start and end information based on chr_table
+    chr_name<-as.character(chr_table$Names[i])
+    chr_length<-as.numeric(chr_table$Length[i])
     
-    arm_start <- chr_table[arm, 'Arm_str']
-    arm_start <- arm_start-2               #Buffer start site 2bp 
+    # subset Grange
+    sub_gr<-GR[seqnames(GR) %in% chr_name]
+    sum_gr<-sum(width(reduce(sub_gr, ignore.strand=T)))
     
-    arm_end <- chr_table[arm, 'Arm_end']
-    arm_end <- arm_end+2                #Buffer end site 2bp 
-    
-    #arm_length<-arm_end-arm_start #Use the length column from chr_table
-    arm_length <- chr_table[arm, 'Length']+4
-    
-    ####################################################################
-    # Subset input file chromosome wise
-    
-    df_chr <- DF[DF$chr %in% chr_name,]
-    
-    # Total number of predictions (rows) from oncoscan analysis for each chromosome
-    total <- length(rownames(df_chr))
-    
-    # Defination and Initialization of percent loh, gain and loss vectors
-    loh=0
-    gain=0
-    loss=0
-    ampli=0
-    alt_segs <- 0
-    
-    
-    if (total > 0)  # calculate % alteration if present in the oncoscan file
-    {
-      for (line in 1:total) # start of for loop over each chromosome
-      {
-        # For each alteration line extract location of the segment altered (segment start and end) 
-        
-        seg_start<-as.numeric(df_chr$start[line])
-        seg_end<-as.numeric(df_chr$end[line])
-        
-        
-        # Define the length of the altered segment based on its location with respect to the chromosome arms
-        if (chr_arm == "p")
-        {
-          if (seg_end <= arm_end)
-          {
-            size_seq=seg_end-seg_start+1
-          }
-          else if (seg_end > arm_end && seg_start < arm_end)
-          {
-            size_seq=arm_end-seg_start+1
-          }
-          else {
-            size_seq=0
-          }
-        }
-        else if (chr_arm == "q")
-        {
-          if (seg_start >= arm_start)
-          {
-            size_seq=seg_end-seg_start
-          }
-          else if (seg_start < arm_start && seg_end > arm_start)
-          {
-            size_seq=seg_end-arm_start
-          }
-          else {
-            size_seq=0
-          }
-        }
-        
-        # Sum up the alterations for each chromosome
-        alt_segs <-c(alt_segs, size_seq)
-        
-      } # End of for loop over each chromosome
-      
-      # Sum all the alterations
-      totla_alt <- sum (alt_segs)
-      
-      # percent alteration calculation for each arm
-      cnv[arm, alt_type] <- totla_alt*100/arm_length
-      
-    } # End of if alteration  present condition
-    
+    # Percentage alteration
+    cnv[chr_name, alt_type]<-sum_gr/chr_length*100
+  }
+  
   }
   return(cnv)
   

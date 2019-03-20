@@ -1,7 +1,5 @@
 #Calculate percentage chromosome copy number alteration (Gain, Loss, LOH) based on Affymetrix Oncoscan Assay 
 #Percentage alteration defined based on the chromosome length covered by oncoscan.
-# Input text file of chromosome size
-# Chromosome size, start and end based on Oncoscan coverage
 
 
 # Packages
@@ -31,6 +29,7 @@ chr_table <- data.frame(Chromosome = c(chromstats$Chrom, chromstats$Chrom),
                         Arm_str = c(chromstats$P_Start, chromstats$Q_Start),
                         Arm_end = c(chromstats$P_End, chromstats$Q_End))
 rownames(chr_table) <- paste0(chr_table$Chromosome, chr_table$Arm) #rownames are the full arm name (e.g. '12p')
+chr_table$Names<-paste0(chr_table$Chromosome, chr_table$Arm) #rownames are the full arm name (e.g. '12p')
 
 #Remove arms not covered in Oncoscan
 chr_table <- chr_table[!is.na(chr_table$Length),]
@@ -63,6 +62,7 @@ sample_id<-"test"
 segment_thr<-1000
 min_gap<-2000
 
+##############################################################################################################
 # Data extraction and transformation
 
 ###############
@@ -73,6 +73,7 @@ min_gap<-2000
 segments<-getSegments(oncoscan)
 
 ###############
+# segments_alt()
 # Segment list based on Alteration
 ###############
 
@@ -90,8 +91,6 @@ loh_GR<-makeGRangesFromDataFrame(tup_seg_loh, keep.extra.columns = TRUE)
 
 ###############
 # hasOverlaps (segs)
-# takes as input a list of segments and returns true if there exists two 
-# overlapping segments within the list. Returns false otherwise.
 # TRUE: No overlap
 # False: Has overlap
 ###############
@@ -132,29 +131,42 @@ loh_GR_smooth<-smoothing(loh_GR_filt, min_gap)
 #longest(segs)
 ##################
 
-gain_GR_smooth_dist<-longest(gain_GR_smooth)
-ampli_GR_smooth_dist<-longest(ampli_GR_smooth)
-loss_GR_smooth_dist<-longest(loss_GR_smooth)
-loh_GR_smooth_dist<-longest(loh_GR_smooth) 
-
-# Grange to dataframe conversion
-gain_df<-annoGR2DF(gain_GR_smooth_dist)
-ampli_df<-annoGR2DF(ampli_GR_smooth_dist)
-loss_df<-annoGR2DF(loss_GR_smooth_dist)
-loh_df<-annoGR2DF(loh_GR_smooth_dist)
+gain_GR_smooth_longest<-longest(gain_GR_smooth)
+ampli_GR_smooth_longest<-longest(ampli_GR_smooth)
+loss_GR_smooth_longest<-longest(loss_GR_smooth)
+loh_GR_smooth_longest<-longest(loh_GR_smooth) 
 
 #################
-# % Gain, Loss and LOH calculations
+# % Gain, Ampli, Loss and LOH calculations based on sum of segments altered
 #################
 
-gain_per<-percent_alt(gain_df,'GAIN')
-ampli_per<-percent_alt(ampli_df,'Ampli')
-loss_per<-percent_alt(loss_df,'LOSS')
-loh_per<-percent_alt(loh_df,'LOH')
+gain_per<-percent_alt(gain_GR_smooth,'GAIN')
+ampli_per<-percent_alt(ampli_GR_smooth,'AMPLI')
+loss_per<-percent_alt(loss_GR_smooth,'LOSS')
+loh_per<-percent_alt(loh_GR_smooth,'LOH')
 
 # Final results as percent table of GAIN, LOSS adn LOH
 
 oncoscan_summary<-cbind(gain_per, ampli_per, loss_per, loh_per)
+
+oncoscan_summary<-round(oncoscan_summary, 2)
+
+print (oncoscan_summary)
+
+#################
+# % Gain, Ampli, Loss and LOH calculations based on longest segment
+#################
+
+gain_per<-percent_alt(gain_GR_smooth_longest,'GAIN')
+ampli_per<-percent_alt(ampli_GR_smooth_longest,'AMPLI')
+loss_per<-percent_alt(loss_GR_smooth_longest,'LOSS')
+loh_per<-percent_alt(loh_GR_smooth_longest,'LOH')
+
+# Final results as percent table of GAIN, LOSS adn LOH
+
+oncoscan_summary<-cbind(gain_per, ampli_per, loss_per, loh_per)
+
+oncoscan_summary<-round(oncoscan_summary, 2)
 
 print (oncoscan_summary)
 
@@ -162,7 +174,7 @@ print (oncoscan_summary)
 # segment visualization
 #################
 
-gir2 = ampli_GR_smooth_dist[seqnames(ampli_GR_smooth_dist) == '14']
-plotRanges(gir2,xlim=c(19265147,107282024))
+gir2 = gain_GR_smooth[seqnames(gain_GR_smooth) == '3q']
+plotRanges(gir2,xlim=c(93517443,197852564))
 
 ##########################
