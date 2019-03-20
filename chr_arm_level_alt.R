@@ -105,10 +105,10 @@ olaps_loh<-hasOverlaps(loh_GR)
 # takes as input a list of segments and returns the sum of the length of all segments. 
 # Segments are expected to be non-overlapping
 ###############
-gain_GR_sum<-sum(gain_GR, olaps_gain)
-ampli_GR_sum<-sum(ampli_GR, olaps_ampli)
-loss_GR_sum<-sum(loss_GR, olaps_loss)
-loh_GR_sum<-sum(loh_GR, olaps_loh)
+gain_GR_sum<-sum_seg(gain_GR, olaps_gain)
+ampli_GR_sum<-sum_seg(ampli_GR, olaps_ampli)
+loss_GR_sum<-sum_seg(loss_GR, olaps_loss)
+loh_GR_sum<-sum_seg(loh_GR, olaps_loh)
 
 #################
 # trim(segs, x)
@@ -132,12 +132,16 @@ loh_GR_smooth<-smoothing(loh_GR_filt, min_gap)
 #longest(segs)
 ##################
 
+gain_GR_smooth_dist<-longest(gain_GR_smooth)
+ampli_GR_smooth_dist<-longest(ampli_GR_smooth)
+loss_GR_smooth_dist<-longest(loss_GR_smooth)
+loh_GR_smooth_dist<-longest(loh_GR_smooth) 
 
 # Grange to dataframe conversion
-gain_df<-annoGR2DF(gain_GR_smooth)
-ampli_df<-annoGR2DF(ampli_GR_smooth)
-loss_df<-annoGR2DF(loss_GR_smooth)
-loh_df<-annoGR2DF(loh_GR_smooth)
+gain_df<-annoGR2DF(gain_GR_smooth_dist)
+ampli_df<-annoGR2DF(ampli_GR_smooth_dist)
+loss_df<-annoGR2DF(loss_GR_smooth_dist)
+loh_df<-annoGR2DF(loh_GR_smooth_dist)
 
 #################
 # % Gain, Loss and LOH calculations
@@ -158,7 +162,7 @@ print (oncoscan_summary)
 # segment visualization
 #################
 
-gir2 = loss_GR_smooth[seqnames(loss_GR_smooth) == '3']
-plotRanges(gir2,xlim=c(63411,90473621))
+gir2 = ampli_GR_smooth_dist[seqnames(ampli_GR_smooth_dist) == '14']
+plotRanges(gir2,xlim=c(19265147,107282024))
 
 ##########################

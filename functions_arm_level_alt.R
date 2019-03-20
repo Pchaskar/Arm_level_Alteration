@@ -197,7 +197,7 @@ hasOverlaps <- function(GR) {
 ###############
 # sum(segs)
 ###############
-sum <- function(GR, olaps) {
+sum_seg <- function(GR, olaps) {
   
   if (olaps=="TRUE")
   {
@@ -239,6 +239,17 @@ smoothing  <- function(GR, gap) {
   end(GR_smooth) <- end(GR_smooth) - gap
   
   return(GR_smooth)
+}
+
+
+##################
+#longest(segs)
+##################
+longest <- function (GR) {
+  
+  GR$dist<-width(GR)
+  
+  return(GR)
 }
 
 ###############
