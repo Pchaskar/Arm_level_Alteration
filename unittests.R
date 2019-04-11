@@ -11,12 +11,14 @@ source("functions_arm_level_alt.R")
 # Test getSegments
 #
 test_getSegments <- function(){
+  chrtable <- getChrTable()
+  
   fn1 <- 'testfiles/H19002057_gene_list_full_location.txt'
   fn2 <- 'testfiles/H19001711_gene_list_full_location.txt'
   fn3 <- 'testfiles/testmix_gene_list_full_location.txt'
-  segs1 <- getSegments(fn1)
-  segs2 <- getSegments(fn2)
-  segs3 <- getSegments(fn3)
+  segs1 <- getSegments(fn1, chrtable)
+  segs2 <- getSegments(fn2, chrtable)
+  segs3 <- getSegments(fn3, chrtable)
 }
 
 #
@@ -56,54 +58,57 @@ test_smoothing <- function(){
     ranges = IRanges(start = c(1, 30),
                      end = c(150, 54)))
   
-  c(sort(s0) == sort(s0_expected),
+  return(c(sort(s0) == sort(s0_expected),
     sort(s4) == sort(s0_expected),
     sort(s5) == sort(s5_expected),
     sort(s6) == sort(s5_expected),
-    sort(s1000) == sort(s1000_expected))
+    sort(s1000) == sort(s1000_expected)))
 }
 
 
 #
 # Test trimming
 #
-test_trimming <- function(){
+test_trim <- function(){
   gr <- GRanges(
     seqnames = c('1p', '1p', '1p', '1q', '1q'),
     ranges = IRanges(start = c(1, 10, 100, 30, 30),
                        end = c(9, 20, 150, 40, 50)))
   
-  t0 <- trimming(gr, 0) 
+  t0 <- trim(gr, 0) 
   #nothing should change
   
-  t8 <- trimming(gr, 8) 
+  t8 <- trim(gr, 8) 
   #nothing should change
   
-  t9 <- trimming(gr, 9) 
+  t9 <- trim(gr, 9) 
   t9_expected <- GRanges(
     seqnames = c('1p', '1p', '1q', '1q'),
     ranges = IRanges(start = c(10, 100, 30, 30),
                        end = c(20, 150, 40, 50)))
   
-  t10 <- trimming(gr, 10)
-  t10_expected <- GRanges(
+  t10 <- trim(gr, 10)
+  #should be the same as t9
+  
+  
+  t11 <- trim(gr, 11)
+  t11_expected <- GRanges(
     seqnames = c('1p', '1q'),
     ranges = IRanges(start = c(100, 30),
                      end = c(150, 50)))
   
-  t11 <- trimming(gr, 11)
-  #should be the same as t10
-  
-  t1000 <- trimming(gr, 1000)
+  t1000 <- trim(gr, 1000)
   #should eliminate all segments
   
-  c(sort(t0) == sort(gr),
+  return(c(sort(t0) == sort(gr),
     sort(t8) == sort(gr),
     sort(t9) == sort(t9_expected),
-    sort(t10) == sort(t10_expected),
-    sort(t11) == sort(t10_expected),
-    length(t1000) == 0)
+    sort(t10) == sort(t9_expected),
+    sort(t11) == sort(t11_expected),
+    length(t1000) == 0))
 }
 
 
 test_smoothing()
+test_trim()
+

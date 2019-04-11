@@ -2,173 +2,141 @@
 # Functions Oncoscan Arm_level_Alteration
 ############################################################
 
-###############
-# 1: getSegments
-###############
-# list of GenomicRanges with one extra column for the copy number and another for the LOH.
 
 
-# Format data, obtain chromosome arm names e.g. p or q
+# Function: getChrTable
+###########################################################
+#Reads in the Oncoscan.na33.r1.chromStats.tsv file
+###########################################################
+getChrTable <- function(){
+  
+  chromstats <- read.table("OncoScan.na33.r1.chromStats.tsv", header = TRUE, na.strings = 'None', stringsAsFactors = FALSE)
+  chr_table <- data.frame(Chromosome = c(chromstats$Chrom, chromstats$Chrom), 
+                          Arm = c(rep('p', dim(chromstats)[1]), rep('q', dim(chromstats)[1])),
+                          Arm_str = as.numeric(c(chromstats$P_Start, chromstats$Q_Start)),
+                          Arm_end = as.numeric(c(chromstats$P_End, chromstats$Q_End)))
+  rownames(chr_table) <- paste0(chr_table$Chromosome, chr_table$Arm) #rownames are the full arm name (e.g. '12p')
+  chr_table$Names<-paste0(chr_table$Chromosome, chr_table$Arm) #rownames are the full arm name (e.g. '12p')
+  
+  #Remove arms not covered in Oncoscan
+  chr_table <- chr_table[!is.na(chr_table$Arm_str),]
+  return(chr_table)
+}
 
-getSegments  <- function(List) {
-  
-  # Initialize necessary variables
-  seg_chr<-c()
-  seg_start<-c()
-  seg_end<-c()
-  seg_length<-c()
-  seg_cn<-c()
-  seg_alt<-c()
-  seg_name<-c()
-  seg_arm<-c()
-  mod_seg_start<-c()
-  mod_seg_end<-c()
-  seg_name<-c()
-  
-  
-  for (line in 1:nrow(List))
-  {
+
+getSegments  <- function(in_filename, chr_table) {
+  #Load the oncoscan file
+  oncoscan_table <- read.table(in_filename, 
+                     sep = "\t", header = TRUE, check.names = FALSE, na.strings=c("","NA"), stringsAsFactors = FALSE)
+  segments_list <- vector(mode = "list", length = 2*dim(List)[1]) #At most we will end up with twice as much segments
+    
+  counter <- 0
+  for (i in 1:dim(oncoscan_table)[1]){
+    counter <- counter+1
     ######## 
     #Start: Extract chr no, start, end, copy number
     
     # Full location from oncoscan file
-    loc_cord<-List$`Full Location`[line]
+    loc_cord<-oncoscan_table[i, 'Full Location']
     loc_cord_list<-strsplit(loc_cord,split=':', fixed=TRUE)[[1]]
     
     # seg chr no based on oncoscan file
-    chr<-(loc_cord_list[1])
-    chr<-gsub("chr","",chr)
-    seg_chr[line]<-as.character(chr)
+    seg_chr<- loc_cord_list[1]
+    seg_chr<-gsub("chr","",seg_chr) #remove 'chr' if present
     
     # seg coordinates
-    coord<-(loc_cord_list[2])
-    coord_list<-strsplit(coord,split='-', fixed=TRUE)[[1]]
+    coord_list<-strsplit(loc_cord_list[2],split='-', fixed=TRUE)[[1]]
+    seg_start<-as.numeric(coord_list[1])
+    seg_end<-as.numeric(coord_list[2])
     
-    # seg start and end based on oncoscan
-    seg_start[line]<-as.numeric(coord_list[1])
-    seg_end[line]<-as.numeric(coord_list[2])
-    
-    # seg copy number and type of alteration
     # Define alteration:  copy gain (2<n<5), copy loss (n<2), LOH and amplification (n>=5)
+    seg_cn <- oncoscan_table[i, 'CN State']
+    seg_cntype <- NULL # LOH, Gain, Loss or Amp
     
-    seg_cn[line]<-List$`CN State`[line]
-    if (is.na(seg_cn[line]))
-    {
-      seg_alt[line]<-"LOH"
+    if (is.na(seg_cn)){
+      seg_cntype <- "LOH"
     }
-    else if (seg_cn[line] >2 && seg_cn[line] <5)
-    {
-      seg_alt[line]<-"Gain"
+    else if (seg_chr %in% c('X','Y')){
+      if (seg_cn >1 && seg_cn <5){
+        seg_cntype <- "Gain"
+      }
+      else if (seg_cn >=5){
+        seg_cntype <- "Amp"
+      }
+      else if (seg_cn <1){
+        seg_cntype <- "Loss"
+      }
     }
-    else if (seg_cn[line] >5)
-    {
-      seg_alt[line]<-"Ampli"
+    else {
+      if (seg_cn >2 && seg_cn <5){
+        seg_cntype <- "Gain"
+      }
+      else if (seg_cn >=5){
+        seg_cntype <- "Amp"
+      }
+      else if (seg_cn <2){
+        seg_cntype <- "Loss"
+      }
     }
-    else if (seg_cn[line] <2)
-    {
-      seg_alt[line]<-"Loss"
-    }
-    
-    ########
-    # End: Extract chr no, start, end, copy number
-    
-    # Subset chromosome table based on chromosome number
-    chr_tab_sub <- chr_table[chr_table$Chromosome %in% seg_chr[line],]
-    
-    
-    for (i in 1:nrow(chr_tab_sub))
-    {
-      start<-c()
-      end<-c()
-      arm<-c()
-      length<-c()
       
-      # chrm name, arm , start and end information based on chr_table
-      chr_arm<-as.character(chr_tab_sub$Arm[i])
-      chr_name<-as.character(chr_tab_sub$Chromosome[i])
-      arm_start<-chr_tab_sub$Arm_str[i]
-      arm_end<-chr_tab_sub$Arm_end[i]
+
+    #Does the chromosome has a p arm in Oncoscan
+    if (paste0(seg_chr, 'p') %in% rownames(chr_table)){
+      p_arm <- chr_table[chr_table$Chromosome == seg_chr & chr_table$Arm == 'p', c('Arm_str','Arm_end')]
+      q_arm <- chr_table[chr_table$Chromosome == seg_chr & chr_table$Arm == 'q', c('Arm_str','Arm_end')]
       
-      if (chr_arm == "p" && chr_name %in% seg_chr[line])
-      {
-        if (seg_end[line] <= arm_end)
-        {
-          length[i]<-seg_end[line]-seg_start[line]+1
-          start[i]<-seg_start[line]
-          end[i]<-seg_end[line]
-          arm[i]<-"p"
-        }
-        else if (seg_end[line] > arm_end && seg_start[line] < arm_end)
-        {
-          length[i]<-arm_end-seg_start[line]+1
-          start[i]<-seg_start[line]
-          end[i]<-arm_end
-          arm[i]<-"p"
-        }
-        else {
-          length[i]<-"0"
-          start[i]<-"0"
-          end[i]<-"0"
-          arm[i]<-"p"
-        }
-        
-        if (length[i] > 0)
-        {
-          mod_seg_start[line]<-start[i]
-          mod_seg_end[line]<-end[i]
-          seg_length[line]<-length[i]
-          seg_arm[line]<-arm[i]
-        }
-        
+      if (seg_start < p_arm[1]-10 | seg_end > q_arm[2]+10){
+        stop('Some segments go beyond the oncoscan coverage!')
       }
       
-      else if (chr_arm == "q" && chr_name %in% seg_chr[line])
-      {
-        if (seg_start[line] >= arm_start)
-        {
-          length[i]<-seg_end[line]-seg_start[line]
-          start[i]<-seg_start[line]
-          end[i]<-seg_end[line]
-          arm[i]<-"q"
+      if (seg_start >= p_arm[1]-10 & seg_start <= p_arm[2]){ #Segment start is in the p arm
+        if (seg_end >= p_arm[1]-10 & seg_end < q_arm[1]){ #Segment end is in the p arm or in the centromere
+          seg <- GRanges(seqnames = factor(paste0(seg_chr, 'p'), levels = rownames(chr_table)), 
+                         ranges = IRanges(start = seg_start, end = seg_end),
+                         cntype = seg_cntype,
+                         cn = seg_cn)
+          segments_list[[counter]] <- seg
+          #append(segments, seg)
+        } 
+        else { #Segment end is in the q arm
+          seg_p <- GRanges(seqnames = factor(paste0(seg_chr, 'p'), levels = rownames(chr_table)), 
+                           ranges = IRanges(start = seg_start, end = as.numeric(p_arm[2])),
+                           cntype = seg_cntype,
+                           cn = seg_cn)
+          seg_q <- GRanges(seqnames = factor(paste0(seg_chr, 'q'), levels = rownames(chr_table)), 
+                           ranges = IRanges(start = as.numeric(q_arm[1]), end = seg_end),
+                           cntype = seg_cntype,
+                           cn = seg_cn)
+          segments_list[[counter]] <- seg_p
+          counter <- counter+1
+          segments_list[[counter]] <- seg_q
+          #append(segments, c(seg_p, seg_q))
         }
-        else if (seg_start[line] < arm_start && seg_end[line] > arm_start)
-        {
-          length[i]<-seg_end[line]-arm_start
-          start[i]<-arm_start
-          end[i]<-seg_end[line]
-          arm[i]<-"q"
-        }
-        else {
-          length[i]<-"0"
-          start[i]<-"0"
-          end[i]<-"0"
-          arm[i]<-"q"
-        }
-      }  
-      
-      if (length[i] > 0)
-      {
-        mod_seg_start[line]<-start[i]
-        mod_seg_end[line]<-end[i]
-        seg_length[line]<-length[i]
-        seg_arm[line]<-arm[i]
-        seg_name[line]<-paste0(seg_chr[line], seg_arm[line]) #rownames are the full arm name (e.g. '12p')
       }
-      
+      else { #The segment start is in the centromere or the q arm
+        seg <- GRanges(seqnames = factor(paste0(seg_chr, 'q'), levels = rownames(chr_table)), 
+                       ranges = IRanges(start = seg_start, end = seg_end),
+                       cntype = seg_cntype,
+                       cn = seg_cn)
+        segments_list[[counter]] <- seg
+        #append(segments, seg)
+      }
     }
-    
+    else { #The chromosome has no p arm so it has to be the q arm
+      seg <- GRanges(seqnames = factor(paste0(seg_chr, 'q'), levels = rownames(chr_table)), 
+                     ranges = IRanges(start = seg_start, end = seg_end),
+                     cntype = seg_cntype,
+                     cn = seg_cn)
+      segments_list[[counter]] <- seg
+      #append(segments, seg)
+    }
   }
-  df_tupule <- data.frame(
-    seqnames=c(seg_name),
-    start = c(mod_seg_start),
-    stop = c(mod_seg_end),
-    type=c(seg_alt),
-    cn=c(seg_cn)
-  )
   
-  
-  return (df_tupule)
+  return(do.call(c, segments_list))
 }
+    
+    
+    
 
 
 ###############
@@ -176,9 +144,8 @@ getSegments  <- function(List) {
 ###############
 # Segment list based on Alteration
 
-segments_alt  <- function(Data, Alt) {
-  seg_alt <- subset(Data , Data$type == Alt)
-  return(seg_alt)
+segments_alt  <- function(GR, Alt) {
+  return(GR[GR$cntype == Alt])
 }
 
 ###############
@@ -230,7 +197,10 @@ sum_seg <- function(GR, olaps) {
 trim <- function (GR,X)
   
 {
-  trimmed_seg<-GR[GR$dist >=X]
+  # calculate distance
+  GR$dist <- width(GR)
+  
+  trimmed_seg <- GR[GR$dist > X]
   
   return (trimmed_seg)
 }
