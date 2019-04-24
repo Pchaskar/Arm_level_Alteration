@@ -4,8 +4,9 @@
 
 # Packages
 #source("https://bioconductor.org/biocLite.R")
-#biocLite("GenomicRanges",  lib="/mnt/c/Users/prac/Documents/R_lib")
-#biocLite("IRanges")
+#BiocManager::install("GenomicRanges", version = "3.8")
+#BiocManager::install("IRanges", version = "3.8")
+#BiocManager::install("Repitools", version = "3.8")
 #BiocManager::install("Repitools", version = "3.8")
 
 
@@ -19,20 +20,11 @@ library(ggplot2)
 source("functions_arm_level_alt.R")
 
 ###########################################################
+#getChrTable() 
 #Reads in the Oncoscan.na33.r1.chromStats.tsv file
 ###########################################################
 
-chromstats <- read.table("OncoScan.na33.r1.chromStats.tsv", header = TRUE, na.strings = 'None', stringsAsFactors = FALSE)
-chr_table <- data.frame(Chromosome = c(chromstats$Chrom, chromstats$Chrom), 
-                        Arm = c(rep('p', dim(chromstats)[1]), rep('q', dim(chromstats)[1])),
-                        Length = c((chromstats$P_End-chromstats$P_Start+1), (chromstats$Q_End-chromstats$Q_Start+1)),
-                        Arm_str = c(chromstats$P_Start, chromstats$Q_Start),
-                        Arm_end = c(chromstats$P_End, chromstats$Q_End))
-rownames(chr_table) <- paste0(chr_table$Chromosome, chr_table$Arm) #rownames are the full arm name (e.g. '12p')
-chr_table$Names<-paste0(chr_table$Chromosome, chr_table$Arm) #rownames are the full arm name (e.g. '12p')
-
-#Remove arms not covered in Oncoscan
-chr_table <- chr_table[!is.na(chr_table$Length),]
+chr_table <- getChrTable()
 
 ##############################################################################################################
 # Read User input file
@@ -53,24 +45,19 @@ segment_thr<-args[2]
 # minimum gap allowed between adjcent segments
 min_gap<-args[3]
 
-##############################################################################################################
-# Temporary hard coded values to be replaced by user input 
-oncoscan <- read.table("test.txt", 
-                       sep = "\t", header = TRUE, check.names = FALSE, na.strings=c("","NA"), stringsAsFactors = FALSE)
-
+##############
+#Temporary inputs
 sample_id<-"test"
+in_file<-"test.txt"
 segment_thr<-1000
 min_gap<-2000
-
-##############################################################################################################
-# Data extraction and transformation
 
 ###############
 # getSegments
 # list of GenomicRanges with one extra column for the copy number and another for the LOH.
 ###############
 
-segments<-getSegments(oncoscan)
+segments<-getSegments(in_file, chr_table)
 
 ###############
 # segments_alt()
@@ -140,10 +127,10 @@ loh_GR_smooth_longest<-longest(loh_GR_smooth)
 # % Gain, Ampli, Loss and LOH calculations based on sum of segments altered
 #################
 
-gain_per<-percent_alt(gain_GR_smooth,'GAIN')
-ampli_per<-percent_alt(ampli_GR_smooth,'AMPLI')
-loss_per<-percent_alt(loss_GR_smooth,'LOSS')
-loh_per<-percent_alt(loh_GR_smooth,'LOH')
+gain_per<-percent_alt(gain_GR_smooth,'GAIN', chr_table)
+ampli_per<-percent_alt(ampli_GR_smooth,'AMPLI', chr_table)
+loss_per<-percent_alt(loss_GR_smooth,'LOSS', chr_table)
+loh_per<-percent_alt(loh_GR_smooth,'LOH', chr_table)
 
 # Final results as percent table of GAIN, LOSS adn LOH
 
@@ -157,10 +144,10 @@ print (oncoscan_summary)
 # % Gain, Ampli, Loss and LOH calculations based on longest segment
 #################
 
-gain_per<-percent_alt(gain_GR_smooth_longest,'GAIN')
-ampli_per<-percent_alt(ampli_GR_smooth_longest,'AMPLI')
-loss_per<-percent_alt(loss_GR_smooth_longest,'LOSS')
-loh_per<-percent_alt(loh_GR_smooth_longest,'LOH')
+gain_per<-percent_alt(gain_GR_smooth_longest,'GAIN', chr_table)
+ampli_per<-percent_alt(ampli_GR_smooth_longest,'AMPLI', chr_table)
+loss_per<-percent_alt(loss_GR_smooth_longest,'LOSS', chr_table)
+loh_per<-percent_alt(loh_GR_smooth_longest,'LOH', chr_table)
 
 # Final results as percent table of GAIN, LOSS adn LOH
 
@@ -174,7 +161,7 @@ print (oncoscan_summary)
 # segment visualization
 #################
 
-gir2 = gain_GR_smooth[seqnames(gain_GR_smooth) == '3q']
-plotRanges(gir2,xlim=c(93517443,197852564))
+#gir2 = gain_GR_smooth[seqnames(gain_GR_smooth) == '3q']
+#plotRanges(gir2,xlim=c(93517443,197852564))
 
 ##########################

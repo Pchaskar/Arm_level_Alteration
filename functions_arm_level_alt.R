@@ -2,12 +2,11 @@
 # Functions Oncoscan Arm_level_Alteration
 ############################################################
 
-
-
+###############
 # Function: getChrTable
-###########################################################
-#Reads in the Oncoscan.na33.r1.chromStats.tsv file
-###########################################################
+# Reads in the Oncoscan.na33.r1.chromStats.tsv file
+###############
+
 getChrTable <- function(){
   
   chromstats <- read.table("OncoScan.na33.r1.chromStats.tsv", header = TRUE, na.strings = 'None', stringsAsFactors = FALSE)
@@ -23,12 +22,18 @@ getChrTable <- function(){
   return(chr_table)
 }
 
+###############
+# Function: getSegments
+# Read User input file
+# list of GenomicRanges with one extra-
+# column for the copy number and another for the LOH.
+###############
 
 getSegments  <- function(in_filename, chr_table) {
   #Load the oncoscan file
   oncoscan_table <- read.table(in_filename, 
                      sep = "\t", header = TRUE, check.names = FALSE, na.strings=c("","NA"), stringsAsFactors = FALSE)
-  segments_list <- vector(mode = "list", length = 2*dim(List)[1]) #At most we will end up with twice as much segments
+  segments_list <- vector(mode = "list", length = 2*dim(oncoscan_table)[1]) #At most we will end up with twice as much segments
     
   counter <- 0
   for (i in 1:dim(oncoscan_table)[1]){
@@ -134,13 +139,9 @@ getSegments  <- function(in_filename, chr_table) {
   
   return(do.call(c, segments_list))
 }
-    
-    
-    
-
 
 ###############
-# segments_alt()
+# Function: segments_alt()
 ###############
 # Segment list based on Alteration
 
@@ -149,7 +150,7 @@ segments_alt  <- function(GR, Alt) {
 }
 
 ###############
-# hasOverlaps (segs)
+# Function: hasOverlaps (segs)
 ###############
 # TRUE: No overlap
 # False: Has overlap
@@ -172,7 +173,7 @@ hasOverlaps <- function(GR) {
 }
 
 ###############
-# sum_seg(segs)
+# Function: sum_seg(segs)
 ###############
 # takes as input a list of segments and returns the sum of the length of all segments. 
 # Segments are expected to be non-overlapping
@@ -207,7 +208,7 @@ trim <- function (GR,X)
 
 
 #################
-#smooth(segs, x)
+# Function: smooth(segs, x)
 #################
 smoothing  <- function(GR, gap) {
   
@@ -228,7 +229,7 @@ smoothing  <- function(GR, gap) {
 
 
 ##################
-#longest(segs)
+# Function: longest(segs)
 ##################
 longest <- function (GR) {
   
@@ -255,7 +256,7 @@ longest <- function (GR) {
 }
 
 ###############
-# Plot ranges 
+# Function: Plot ranges 
 ###############
 
 plotRanges <- function(x, xlim = x, main = deparse(substitute(x)),
@@ -274,10 +275,10 @@ plotRanges <- function(x, xlim = x, main = deparse(substitute(x)),
 }
 
 ##################
-# % Alteration
+# Function: Percent Alteration
 ##################
 
-percent_alt <- function(GR, ALT) {
+percent_alt <- function(GR, ALT, chr_table) {
   
   alt_type<-ALT
   
@@ -319,7 +320,7 @@ percent_alt <- function(GR, ALT) {
     
     # chrm name, arm , start and end information based on chr_table
     chr_name<-as.character(chr_table$Names[i])
-    chr_length<-as.numeric(chr_table$Length[i])
+    chr_length<-as.numeric(chr_table$Arm_end[i]-chr_table$Arm_str[i])
     
     # subset Grange
     sub_gr<-GR[seqnames(GR) %in% chr_name]
