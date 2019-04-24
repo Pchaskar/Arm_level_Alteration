@@ -68,7 +68,7 @@ getSegments  <- function(in_filename, chr_table) {
       else if (seg_cn >=5){
         seg_cntype <- "Amp"
       }
-      else if (seg_cn <1){
+      else if (seg_cn <=1){
         seg_cntype <- "Loss"
       }
     }

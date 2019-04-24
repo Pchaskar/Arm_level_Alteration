@@ -1,7 +1,3 @@
-#Calculate percentage chromosome copy number alteration (Gain, Loss, LOH) based on Affymetrix Oncoscan Assay 
-#Percentage alteration defined based on the chromosome length covered by oncoscan.
-
-
 # Packages
 #source("https://bioconductor.org/biocLite.R")
 #BiocManager::install("GenomicRanges", version = "3.8")
@@ -26,31 +22,34 @@ source("functions_arm_level_alt.R")
 
 chr_table <- getChrTable()
 
+
+#Calculate percentage chromosome copy number alteration (Gain, Loss, LOH) based on Affymetrix Oncoscan Assay 
+#Percentage alteration defined based on the chromosome length covered by oncoscan.
+chr_alt_summary <- function(in_file,segment_thr,min_gap){
+  
+
 ##############################################################################################################
 # Read User input file
 ###########################################################
-args <- commandArgs(trailingOnly = TRUE)
+#args <- commandArgs(trailingOnly = TRUE)
 
 # Input file name.txt
-in_file<-args[1]
+#in_file<-args[1]
 
-sample_id<-gsub(".txt","",basename(in_file))
-
-oncoscan <- read.table(in_file, 
-               sep = "\t", header = TRUE, check.names = FALSE, na.strings=c("","NA"), stringsAsFactors = FALSE)
+sample_id<-gsub("_gene_list_full_location.txt","",basename(in_file))
 
 # Filter out not broad enough segments defined by threshold segment_thr, mega base pair range
-segment_thr<-args[2]
+#segment_thr<-args[2]
 
 # minimum gap allowed between adjcent segments
-min_gap<-args[3]
+#min_gap<-args[3]
 
 ##############
 #Temporary inputs
-sample_id<-"test"
-in_file<-"test.txt"
-segment_thr<-1000
-min_gap<-2000
+#sample_id<-"test"
+#in_file<-"test.txt"
+#segment_thr<-1000
+#min_gap<-2000
 
 ###############
 # getSegments
@@ -138,7 +137,12 @@ oncoscan_summary<-cbind(gain_per, ampli_per, loss_per, loh_per)
 
 oncoscan_summary<-round(oncoscan_summary, 2)
 
-print (oncoscan_summary)
+#print (oncoscan_summary)
+
+# Write output file
+csvFileName <- file.path("./chr_alt_out/",paste0(sample_id,"_","sum_seg",".csv",sep=""))
+write.csv(oncoscan_summary, csvFileName)
+
 
 #################
 # % Gain, Ampli, Loss and LOH calculations based on longest segment
@@ -155,7 +159,10 @@ oncoscan_summary<-cbind(gain_per, ampli_per, loss_per, loh_per)
 
 oncoscan_summary<-round(oncoscan_summary, 2)
 
-print (oncoscan_summary)
+#print (oncoscan_summary)
+# Write output file
+csvFileName <- file.path("./chr_alt_out/",paste0(sample_id,"_","long_seg",".csv",sep=""))
+write.csv(oncoscan_summary, csvFileName)
 
 #################
 # segment visualization
@@ -165,3 +172,5 @@ print (oncoscan_summary)
 #plotRanges(gir2,xlim=c(93517443,197852564))
 
 ##########################
+
+}

@@ -2,4 +2,6 @@ tests/
 test*
 tmp*
 .Rhistory
-
+testfiles/
+oncoscan_files/
+chr_alt_out/
