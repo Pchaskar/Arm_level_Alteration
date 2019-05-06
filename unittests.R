@@ -16,9 +16,12 @@ test_getSegments <- function(){
   fn1 <- 'testfiles/H19002057_gene_list_full_location.txt'
   fn2 <- 'testfiles/H19001711_gene_list_full_location.txt'
   fn3 <- 'testfiles/testmix_gene_list_full_location.txt'
+  fn4 <- 'testfiles/H18003069_gene_list_full_location.txt'
+
   segs1 <- getSegments(fn1, chrtable)
   segs2 <- getSegments(fn2, chrtable)
   segs3 <- getSegments(fn3, chrtable)
+  segs4 <- getSegments(fn4, chrtable)
 }
 
 #
@@ -108,7 +111,99 @@ test_trim <- function(){
     length(t1000) == 0))
 }
 
+#
+# Test the function sum_seg
+#
+test_sum <- function(){
+  fn <- 'testfiles/testmix_gene_list_full_location.txt'
+  chrtable <- getChrTable()
+  
+  #Get segments
+  segs <- getSegments(fn, chrtable)
+  
+  gains <- segments_alt(segs, 'Gain')
+  amps <- segments_alt(segs, 'Amp')
+  losses <- segments_alt(segs, 'Loss')
+  lohs <- segments_alt(segs, 'LOH')
+  
+  #Compute sum
+  sum_gains <- sum_seg(gains)
+  sum_amps <- sum_seg(amps)
+  sum_losses <- sum_seg(losses)
+  sum_lohs <- sum_seg(lohs)
+  sum_all <- sum_seg(segs)
+  
+  #Define expected output
+  arm_levels <- levels(seqnames(gains))
+  
+  expected_sum_gains <- rep(0, length(arm_levels))
+  names(expected_sum_gains) <- arm_levels
+  expected_sum_gains['7q'] <- 23201
+  
+  expected_sum_amps <- rep(0, length(arm_levels))
+  names(expected_sum_amps) <- arm_levels
+  expected_sum_amps['7p'] <- 2806224
+  expected_sum_amps['7q'] <- 55897885
+  
+  expected_sum_losses <- rep(0, length(arm_levels))
+  names(expected_sum_losses) <- arm_levels
+  expected_sum_losses['1p'] <- 3816201
+  expected_sum_losses['6p'] <- 50201
+  expected_sum_losses['20p'] <- 38801
+  expected_sum_losses['20q'] <- 314901
+  expected_sum_losses['21q'] <- 330401
+  
+  expected_sum_lohs <- rep(0, length(arm_levels))
+  names(expected_sum_lohs) <- arm_levels
+  expected_sum_lohs['1p'] <- 3816201
+  expected_sum_lohs['2q'] <- 2527001
+  expected_sum_lohs['21q'] <- 330401
+  expected_sum_lohs['7p'] <- 30001
+  
+  expected_sum_all <- rep(0, length(arm_levels))
+  names(expected_sum_all) <- arm_levels
+  expected_sum_all['1p'] <- 3816201
+  expected_sum_all['2q'] <- 2527001
+  expected_sum_all['6p'] <- 50201
+  expected_sum_all['7p'] <- 2815424
+  expected_sum_all['7q'] <- 55901084
+  expected_sum_all['20p'] <- 38801
+  expected_sum_all['20q'] <- 314901
+  expected_sum_all['21q'] <- 330401
+  
+  
+  return(c(
+    amps=sum(expected_sum_amps == sum_amps) == length(expected_sum_amps),
+    gains=sum(expected_sum_gains == sum_gains) == length(expected_sum_gains),
+    lohs=sum(expected_sum_lohs == sum_lohs) == length(expected_sum_lohs),
+    losses=sum(expected_sum_losses == sum_losses) == length(expected_sum_losses),
+    all=sum(expected_sum_all == sum_all) == length(expected_sum_all)))
+
+}
+
+
+test_longest <- function(){
+  fn <- 'testfiles/testmix_gene_list_full_location.txt'
+  chrtable <- getChrTable()
+  
+  #Get segments
+  segs <- getSegments(fn, chrtable)
+  
+  gains <- segments_alt(segs, 'Gain')
+  amps <- segments_alt(segs, 'Amp')
+  
+  #Compute sum
+  ampsgains_merged <- smoothing(c(amps, gains), 0)
+  
+  return(c(
+  amps = sort(amps)[c(2,3)] == sort(longest(amps)),
+  ampsgains = sort(amps)[c(2,3)] == sort(longest(c(amps, gains))),
+  ampsgains_merged = sort(ampsgains_merged)[c(1,2)] == sort(longest(ampsgains_merged))
+  ))
+}
 
 test_smoothing()
 test_trim()
-
+test_getSegments()
+test_sum()
+test_longest()

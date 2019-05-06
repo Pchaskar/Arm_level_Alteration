@@ -175,18 +175,17 @@ hasOverlaps <- function(GR) {
 ###############
 # Function: sum_seg(segs)
 ###############
-# takes as input a list of segments and returns the sum of the length of all segments. 
-# Segments are expected to be non-overlapping
+# takes as input a list of segments and returns the sum of the length of all segments for all arms. 
+# Overlapping segments are merged.
 
-sum_seg <- function(GR, olaps) {
+sum_seg <- function(GR) {
+  gr_merged <- smoothing(GR, 0)
+  gr_merged$dist<-width(gr_merged)
   
-  if (olaps=="TRUE")
-  {
-    sum_seq<-reduce(GR, ignore.strand=T)
-    sum_seq$dist<-width(sum_seq)
-  }
-  return(sum_seq)
- 
+  lengths <- sapply(levels(seqnames(gr_merged)), function(arm){
+    ifelse(arm %in% seqnames(gr_merged), sum(gr_merged[seqnames(gr_merged) == arm]$dist), 0)
+  })
+  return(lengths)
 }
 
 #################
@@ -230,6 +229,7 @@ smoothing  <- function(GR, gap) {
 
 ##################
 # Function: longest(segs)
+# Warning: If there are overlapping segments, it will not merge the segments!
 ##################
 longest <- function (GR) {
   
