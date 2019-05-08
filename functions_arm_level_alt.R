@@ -149,45 +149,6 @@ segments_alt  <- function(GR, Alt) {
   return(GR[GR$cntype == Alt])
 }
 
-###############
-# Function: hasOverlaps (segs)
-###############
-# TRUE: No overlap
-# False: Has overlap
-
-hasOverlaps <- function(GR) {
-
-  #findoverlaps
-  hits <- findOverlaps(GR,GR, type="any")
-  
-  # remove the ones where an interval is being compared to itself
-  hits <- hits[queryHits(hits) != subjectHits(hits)]
-
-  ov<-lengths(hits)
-  
-  keep_ov<-ov==0
-  
-  test_ol<-all(keep_ov)
-  
-  return(test_ol)
-}
-
-###############
-# Function: sum_seg(segs)
-###############
-# takes as input a list of segments and returns the sum of the length of all segments for all arms. 
-# Overlapping segments are merged.
-
-sum_seg <- function(GR) {
-  gr_merged <- smoothing(GR, 0)
-  gr_merged$dist<-width(gr_merged)
-  
-  lengths <- sapply(levels(seqnames(gr_merged)), function(arm){
-    ifelse(arm %in% seqnames(gr_merged), sum(gr_merged[seqnames(gr_merged) == arm]$dist), 0)
-  })
-  return(lengths)
-}
-
 #################
 #trim(segs, x)
 #################
@@ -226,7 +187,6 @@ smoothing  <- function(GR, gap) {
   return(GR_smooth)
 }
 
-
 ##################
 # Function: longest(segs)
 # Warning: If there are overlapping segments, it will not merge the segments!
@@ -255,6 +215,47 @@ longest <- function (GR) {
   return(Gr_long)
 }
 
+
+#################
+# sum_seg_all
+# takes as input a list of all the segments and returns the sum of their lengths. 
+#################
+
+sum_seg_all <- function(GR) {
+  gr_merged <- smoothing(GR, 0)
+  gr_merged$dist<-width(gr_merged)
+  
+  lengths <- sapply(levels(seqnames(gr_merged)), function(arm){
+    ifelse(arm %in% seqnames(gr_merged), sum(gr_merged[seqnames(gr_merged) == arm]$dist), 0)
+  })
+  return(lengths)
+}
+
+###############
+# sum_seg_longest
+# takes as input a list of all the segments and returns the length of longest segment. 
+###############
+
+sum_seg_longest <- function(GR,  segment_thr, min_gap) {
+  
+  # trim(segs, x)
+  GR_filt<-trim(GR,segment_thr)
+  
+  # smooth(segs, x)
+  GR_smooth<-smoothing(GR_filt, min_gap)
+  
+  # calculate longest segement
+  Gr_long<-longest(GR_smooth)
+
+  # calculate length of the longest segment
+  Gr_long$dist<-width(Gr_long)
+  
+  lengths <- sapply(levels(seqnames(Gr_long)), function(arm){
+    ifelse(arm %in% seqnames(Gr_long), sum(Gr_long[seqnames(Gr_long) == arm]$dist), 0)
+  })
+  return(lengths)
+}
+
 ###############
 # Function: Plot ranges 
 ###############
@@ -278,59 +279,26 @@ plotRanges <- function(x, xlim = x, main = deparse(substitute(x)),
 # Function: Percent Alteration
 ##################
 
-percent_alt <- function(GR, ALT, chr_table) {
+percent_alt <- function(alt_sum, alt, chr_table) {
   
-  alt_type<-ALT
+  alt_type<-alt
   
-  #Init data table
-  if (alt_type %in% "GAIN")
-  {
-    cnv <- data.frame(row.names = rownames(chr_table), 
-                      GAIN = rep(0, dim(chr_table)[1]))
-  }
-  else if (alt_type %in% "AMPLI")
-  {
-    cnv <- data.frame(row.names = rownames(chr_table), 
-                      AMPLI = rep(0, dim(chr_table)[1]))
-  }
-  else if (alt_type %in% "LOSS")
-  {
-    cnv <- data.frame(row.names = rownames(chr_table), 
-                      LOSS = rep(0, dim(chr_table)[1]))
-  }
-  else if (alt_type %in% "LOH")
-  {
-    cnv <- data.frame(row.names = rownames(chr_table), 
-                      LOH = rep(0, dim(chr_table)[1]))
-  }  
+  cnv<-data.frame()
   
-  
-  # Check if GR is not empty
-  
-  total <-length(GR)
-
-  if (total > 0)  # calculate % alteration if present in the oncoscan file
-  {
+  #calculate % alteration if present in the oncoscan file
   # Loop over each chromosome Arm
   
   for (i in 1:nrow(chr_table))
   {
-    sub_gr<-c()
-    sum_gr<-c()
-    
+
     # chrm name, arm , start and end information based on chr_table
     chr_name<-as.character(chr_table$Names[i])
     chr_length<-as.numeric(chr_table$Arm_end[i]-chr_table$Arm_str[i])
     
-    # subset Grange
-    sub_gr<-GR[seqnames(GR) %in% chr_name]
-    sum_gr<-sum(width(reduce(sub_gr, ignore.strand=T)))
-    
     # Percentage alteration
-    cnv[chr_name, alt_type]<-sum_gr/chr_length*100
+    cnv[chr_name, alt_type]<-alt_sum[i]/chr_length*100
   }
   
-  }
   return(cnv)
   
 } # End of function percent alteration
