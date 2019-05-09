@@ -232,7 +232,7 @@ sum_seg <- function(GR) {
 }
 
 ###############
-# Function: sum_seg(segs)
+# Function: sum_long_seg
 ###############
 # takes as input a list of segments and returns the sum of the logest segement only. 
 # Overlapping segments are merged.
