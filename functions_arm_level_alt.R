@@ -149,50 +149,10 @@ segments_alt  <- function(GR, Alt) {
   return(GR[GR$cntype == Alt])
 }
 
-###############
-# Function: hasOverlaps (segs)
-###############
-# TRUE: No overlap
-# False: Has overlap
-
-hasOverlaps <- function(GR) {
-
-  #findoverlaps
-  hits <- findOverlaps(GR,GR, type="any")
-  
-  # remove the ones where an interval is being compared to itself
-  hits <- hits[queryHits(hits) != subjectHits(hits)]
-
-  ov<-lengths(hits)
-  
-  keep_ov<-ov==0
-  
-  test_ol<-all(keep_ov)
-  
-  return(test_ol)
-}
-
-###############
-# Function: sum_seg(segs)
-###############
-# takes as input a list of segments and returns the sum of the length of all segments for all arms. 
-# Overlapping segments are merged.
-
-sum_seg <- function(GR) {
-  gr_merged <- smoothing(GR, 0)
-  gr_merged$dist<-width(gr_merged)
-  
-  lengths <- sapply(levels(seqnames(gr_merged)), function(arm){
-    ifelse(arm %in% seqnames(gr_merged), sum(gr_merged[seqnames(gr_merged) == arm]$dist), 0)
-  })
-  return(lengths)
-}
-
 #################
 #trim(segs, x)
 #################
 # takes as input a list of segments 'segs' and returns a list of all segments larger than 'x' Kb. x as to be >=0.
-
 
 trim <- function (GR,X)
   
@@ -205,10 +165,10 @@ trim <- function (GR,X)
   return (trimmed_seg)
 }
 
+#################
+# Function: smoothing(segs, x)
+#################
 
-#################
-# Function: smooth(segs, x)
-#################
 smoothing  <- function(GR, gap) {
   
   # Add buffer region upstream and downstream of GRranges
@@ -226,11 +186,11 @@ smoothing  <- function(GR, gap) {
   return(GR_smooth)
 }
 
-
 ##################
 # Function: longest(segs)
 # Warning: If there are overlapping segments, it will not merge the segments!
 ##################
+
 longest <- function (GR) {
   
   # calculate distance
@@ -256,6 +216,48 @@ longest <- function (GR) {
 }
 
 ###############
+# Function: sum_seg(segs)
+###############
+# takes as input a list of segments and returns the sum of the length of all segments for all arms. 
+# Overlapping segments are merged.
+
+sum_seg <- function(GR) {
+  gr_merged <- smoothing(GR, 0)
+  gr_merged$dist<-width(gr_merged)
+  
+  lengths <- sapply(levels(seqnames(gr_merged)), function(arm){
+    ifelse(arm %in% seqnames(gr_merged), sum(gr_merged[seqnames(gr_merged) == arm]$dist), 0)
+  })
+  return(lengths)
+}
+
+###############
+# Function: sum_seg(segs)
+###############
+# takes as input a list of segments and returns the sum of the logest segement only. 
+# Overlapping segments are merged.
+
+sum_long_seg <- function(GR, segment_thr, min_gap) {
+  
+  # takes as input a list of segments 'segs' and returns a list of all segments larger than 'x' Kb. x as to be >=0.
+  gr_filtered <- trim (GR, segment_thr)
+  
+  # join segements separated by min_gap
+  gr_merged <- smoothing(gr_filtered, min_gap)
+  
+  # find the longest segment after smoothing
+  gr_longest <- longest(gr_merged)
+  
+  # calculate segment length of longest fragment
+  gr_longest$dist<-width(gr_longest)
+  
+  lengths <- sapply(levels(seqnames(gr_longest)), function(arm){
+    ifelse(arm %in% seqnames(gr_longest), sum(gr_longest[seqnames(gr_longest) == arm]$dist), 0)
+  })
+  return(lengths)
+}
+
+###############
 # Function: Plot ranges 
 ###############
 
@@ -278,59 +280,28 @@ plotRanges <- function(x, xlim = x, main = deparse(substitute(x)),
 # Function: Percent Alteration
 ##################
 
-percent_alt <- function(GR, ALT, chr_table) {
+percent_alt <- function(sum_alt, alt, chr_table) {
   
-  alt_type<-ALT
+  alt_type<-alt
   
   #Init data table
-  if (alt_type %in% "GAIN")
-  {
-    cnv <- data.frame(row.names = rownames(chr_table), 
-                      GAIN = rep(0, dim(chr_table)[1]))
-  }
-  else if (alt_type %in% "AMPLI")
-  {
-    cnv <- data.frame(row.names = rownames(chr_table), 
-                      AMPLI = rep(0, dim(chr_table)[1]))
-  }
-  else if (alt_type %in% "LOSS")
-  {
-    cnv <- data.frame(row.names = rownames(chr_table), 
-                      LOSS = rep(0, dim(chr_table)[1]))
-  }
-  else if (alt_type %in% "LOH")
-  {
-    cnv <- data.frame(row.names = rownames(chr_table), 
-                      LOH = rep(0, dim(chr_table)[1]))
-  }  
-  
+    cnv <- data.frame()
   
   # Check if GR is not empty
   
-  total <-length(GR)
-
-  if (total > 0)  # calculate % alteration if present in the oncoscan file
-  {
   # Loop over each chromosome Arm
   
   for (i in 1:nrow(chr_table))
   {
-    sub_gr<-c()
-    sum_gr<-c()
-    
+
     # chrm name, arm , start and end information based on chr_table
     chr_name<-as.character(chr_table$Names[i])
     chr_length<-as.numeric(chr_table$Arm_end[i]-chr_table$Arm_str[i])
     
-    # subset Grange
-    sub_gr<-GR[seqnames(GR) %in% chr_name]
-    sum_gr<-sum(width(reduce(sub_gr, ignore.strand=T)))
-    
     # Percentage alteration
-    cnv[chr_name, alt_type]<-sum_gr/chr_length*100
+    cnv[chr_name, alt_type]<-sum_alt[i]/chr_length*100
   }
   
-  }
   return(cnv)
   
 } # End of function percent alteration
