@@ -4,4 +4,4 @@ tmp*
 .Rhistory
 testfiles/
 oncoscan_files/
-chr_alt_out/
+chr_alt_out_/
