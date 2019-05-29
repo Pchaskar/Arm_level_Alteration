@@ -37,7 +37,6 @@ chr_alt_summary <- function(in_file,segment_thr,min_gap){
 # Input file name.txt
 #in_file<-args[1]
 
-#sample_id<-gsub("_gene_list_full_location.txt","",basename(in_file))
 
 # Filter out not broad enough segments defined by threshold segment_thr, mega base pair range
 #segment_thr<-args[2]
@@ -47,11 +46,12 @@ chr_alt_summary <- function(in_file,segment_thr,min_gap){
 
 ##############
 #Temporary inputs
-sample_id<-"test"
-in_file<-"test.txt"
-segment_thr<-1000
-min_gap<-2000
-
+#sample_id<-"test"
+#in_file<-"test.txt"
+#segment_thr<-1000
+#min_gap<-2000
+###############
+sample_id<-gsub("_gene_list_full_location.txt","",basename(in_file))
 ###############
 # getSegments
 # list of GenomicRanges with one extra column for the copy number and another for the LOH.
