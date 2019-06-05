@@ -1,5 +1,5 @@
 <<<<<<< HEAD
-# Packages
+# Package
 #source("https://bioconductor.org/biocLite.R")
 #BiocManager::install("GenomicRanges", version = "3.8")
 #BiocManager::install("IRanges", version = "3.8")
