@@ -1,6 +1,6 @@
 <<<<<<< HEAD
 ############################################################
-# Functions Oncoscan Arm_level_Alteration
+# Functions Oncoscan Arm_level_Alterations
 ############################################################
 
 ###############
