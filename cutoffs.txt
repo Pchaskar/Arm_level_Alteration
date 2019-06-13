@@ -1,0 +1,11 @@
+dir filt smooth
+chr_alt_out_10k_1k 10000 1000
+chr_alt_out_300k_10Mb 300000 10000000
+chr_alt_out_300k_1Mb 300000 1000000
+chr_alt_out_300k_300k 300000 300000
+chr_alt_out_3Mb_10Mb 3000000 10000000
+chr_alt_out_3Mb_1Mb 3000000 1000000
+chr_alt_out_3Mb_300k 3000000 300000
+chr_alt_out_10k_10Mb 10000 10000000
+chr_alt_out_10k_1Mb 10000 1000000
+chr_alt_out_10k_300k 10000 300000
