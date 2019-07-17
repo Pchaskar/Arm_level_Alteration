@@ -58,10 +58,10 @@ chr_alt_summary <- function(in_file,segment_thr,min_gap)
   # Segment list based on Alteration
   ###############
   
-  gain_GR<-c(segments_alt(segments, "Gain"), segments_alt(segments, "Ampli"))
-  ampli_GR<-segments_alt(segments, "Ampli")
-  loss_GR<-segments_alt(segments, "Loss")
-  loh_GR<-segments_alt(segments, "LOH")
+  gain_GR<-c(segments_alt(segments, GAIN), segments_alt(segments, AMP))
+  ampli_GR<-segments_alt(segments, AMP)
+  loss_GR<-segments_alt(segments, LOSS)
+  loh_GR<-segments_alt(segments, LOH)
   
   #################
   #trim(segs, x)
@@ -117,10 +117,10 @@ chr_alt_summary <- function(in_file,segment_thr,min_gap)
   # % Gain, Ampli, Loss and LOH calculations based on sum of segments altered
   
   
-  gain_per<-percent_alt(gain_GR_sum,'GAIN', chr_table)
-  ampli_per<-percent_alt(ampli_GR_sum,'AMPLI', chr_table)
-  loss_per<-percent_alt(loss_GR_sum,'LOSS', chr_table)
-  loh_per<-percent_alt(loh_GR_sum,'LOH', chr_table)
+  gain_per<-percent_alt(gain_GR_sum, GAIN, chr_table)
+  ampli_per<-percent_alt(ampli_GR_sum, AMP, chr_table)
+  loss_per<-percent_alt(loss_GR_sum, LOSS, chr_table)
+  loh_per<-percent_alt(loh_GR_sum, LOH, chr_table)
   
   # Final results as percent table of GAIN, LOSS adn LOH
   
@@ -138,10 +138,10 @@ chr_alt_summary <- function(in_file,segment_thr,min_gap)
   # % Gain, Ampli, Loss and LOH calculations based on longest segment
   #################
   
-  gain_per<-percent_alt(gain_GR_sum_long,'GAIN', chr_table)
-  ampli_per<-percent_alt(ampli_GR_sum_long,'AMPLI', chr_table)
-  loss_per<-percent_alt(loss_GR_sum_long,'LOSS', chr_table)
-  loh_per<-percent_alt(loh_GR_sum_long,'LOH', chr_table)
+  gain_per<-percent_alt(gain_GR_sum_long, GAIN, chr_table)
+  ampli_per<-percent_alt(ampli_GR_sum_long, AMP, chr_table)
+  loss_per<-percent_alt(loss_GR_sum_long, LOSS, chr_table)
+  loh_per<-percent_alt(loh_GR_sum_long, LOH, chr_table)
   
   # Final results as percent table of GAIN, LOSS adn LOH
   
@@ -163,10 +163,10 @@ chr_alt_summary <- function(in_file,segment_thr,min_gap)
   
   ##########################
   
-  seg_gain <- segment_no (gain_GR,'GAIN', chr_table)
-  seg_ampli <- segment_no (ampli_GR,'AMPLI', chr_table)
-  seg_loss <- segment_no (loss_GR,'LOSS', chr_table)
-  seg_loh <- segment_no (loh_GR,'LOH', chr_table)
+  seg_gain <- segment_no (gain_GR, GAIN, chr_table)
+  seg_ampli <- segment_no (ampli_GR, AMP, chr_table)
+  seg_loss <- segment_no (loss_GR, LOSS, chr_table)
+  seg_loh <- segment_no (loh_GR, LOH, chr_table)
   
   # Final results as percent table of GAIN, LOSS adn LOH
   

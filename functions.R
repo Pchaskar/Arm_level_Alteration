@@ -2,11 +2,17 @@
 # Functions Oncoscan Arm_level_Alteration
 ############################################################
 
+#Definitions for alteration names
+LOSS <- 'Loss'
+GAIN <- 'Gain'
+AMP <- 'Amp'
+LOH <- 'LOH'
+
+
 ###############
 # Function: getChrTable
 # Reads in the Oncoscan.na33.r1.chromStats.tsv file
 ###############
-
 getChrTable <- function(){
   
   chromstats <- read.table("OncoScan.na33.r1.chromStats.tsv", header = TRUE, na.strings = 'None', stringsAsFactors = FALSE)
@@ -56,32 +62,10 @@ getSegments  <- function(in_filename, chr_table) {
     
     # Define alteration:  copy gain (2<n<5), copy loss (n<2), LOH and amplification (n>=5)
     seg_cn <- oncoscan_table[i, 'CN State']
-    seg_cntype <- NULL # LOH, Gain, Loss or Amp
+    seg_cntype <- oncoscan_table[i, 'Type']
     
-    if (is.na(seg_cn)){
-      seg_cntype <- "LOH"
-    }
-    else if (seg_chr %in% c('X','Y')){
-      if (seg_cn >1 && seg_cn <5){
-        seg_cntype <- "Gain"
-      }
-      else if (seg_cn >=5){
-        seg_cntype <- "Amp"
-      }
-      else if (seg_cn <=1){
-        seg_cntype <- "Loss"
-      }
-    }
-    else {
-      if (seg_cn >2 && seg_cn <5){
-        seg_cntype <- "Gain"
-      }
-      else if (seg_cn >=5){
-        seg_cntype <- "Amp"
-      }
-      else if (seg_cn <2){
-        seg_cntype <- "Loss"
-      }
+    if (seg_cntype == GAIN && seg_cn >= 5){
+      seg_cntype <- AMP
     }
     
     #Does the chromosome has a p arm in Oncoscan
@@ -136,7 +120,7 @@ getSegments  <- function(in_filename, chr_table) {
     }
   }
   
-  return(do.call(c, segments_list))
+  return(do.call("c", segments_list))
 }
 
 ###############
@@ -145,7 +129,12 @@ getSegments  <- function(in_filename, chr_table) {
 # Segment list based on Alteration
 
 segments_alt  <- function(GR, Alt) {
-  return(GR[GR$cntype == Alt])
+  if (Alt %in% c(GAIN, AMP, LOSS, LOH)){
+    return(GR[GR$cntype == Alt])
+  }
+  else {
+    stop(paste(Alt, 'is not a valid alteration.'))
+  }
 }
 
 #################
@@ -254,25 +243,24 @@ plotRanges <- function(x, xlim = x, main = deparse(substitute(x)),
 ##################
 
 percent_alt <- function(sum_alt, alt, chr_table) {
-  
-  alt_type<-alt
-  
+  if (!(alt %in% c(GAIN, AMP, LOSS, LOH))){
+    stop(paste(alt, 'is not a valid alteration.'))
+  }
+
   #Init data table
   cnv <- data.frame()
   
   # Check if GR is not empty
   
   # Loop over each chromosome Arm
-  
   for (i in 1:nrow(chr_table))
   {
-    
     # chrm name, arm , start and end information based on chr_table
     chr_name<-as.character(chr_table$Names[i])
     chr_length<-as.numeric(chr_table$Arm_end[i]-chr_table$Arm_str[i])
     
     # Percentage alteration
-    cnv[chr_name, alt_type]<-sum_alt[i]/chr_length*100
+    cnv[chr_name, alt]<-sum_alt[i]/chr_length*100
   }
   
   return(cnv)
@@ -281,20 +269,20 @@ percent_alt <- function(sum_alt, alt, chr_table) {
 
 
 ##################
-# Function: # of segenets altered per chromosome arm
+# Function: # of segments altered per chromosome arm
 ##################
 
 segment_no <- function(GR, alt, chr_table) {
-  
-  alt_type<-alt
-  
+  if (!(alt %in% c(GAIN, AMP, LOSS, LOH))){
+    stop(paste(alt, 'is not a valid alteration.'))
+  }
+
   #Init data table
   cnv <- data.frame()
   
   # Check if GR is not empty
   
   # Loop over each chromosome Arm
-  
   for (i in 1:nrow(chr_table))
   {
     
@@ -303,7 +291,7 @@ segment_no <- function(GR, alt, chr_table) {
     chr_length<-as.numeric(chr_table$Arm_end[i]-chr_table$Arm_str[i])
     
     # of altered segments
-    cnv[chr_name, alt_type]<-length( GR[seqnames(GR) == chr_name])
+    cnv[chr_name, alt]<-length( GR[seqnames(GR) == chr_name])
   }
   
   return(cnv)
