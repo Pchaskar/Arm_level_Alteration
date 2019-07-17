@@ -56,7 +56,7 @@ getSegments  <- function(in_filename, chr_table) {
     
     # Define alteration:  copy gain (2<n<5), copy loss (n<2), LOH and amplification (n>=5)
     seg_cn <- oncoscan_table[i, 'CN State']
-    seg_cntype <- NULL # LOH, Gain, Loss or Amp
+    seg_cntype <- NULL # LOH, Gain, Loss or Ampli
     
     if (is.na(seg_cn)){
       seg_cntype <- "LOH"
@@ -66,7 +66,7 @@ getSegments  <- function(in_filename, chr_table) {
         seg_cntype <- "Gain"
       }
       else if (seg_cn >=5){
-        seg_cntype <- "Amp"
+        seg_cntype <- "Ampli"
       }
       else if (seg_cn <=1){
         seg_cntype <- "Loss"
@@ -77,7 +77,7 @@ getSegments  <- function(in_filename, chr_table) {
         seg_cntype <- "Gain"
       }
       else if (seg_cn >=5){
-        seg_cntype <- "Amp"
+        seg_cntype <- "Ampli"
       }
       else if (seg_cn <2){
         seg_cntype <- "Loss"
