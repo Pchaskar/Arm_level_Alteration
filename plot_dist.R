@@ -28,7 +28,7 @@ library(fitdistrplus)
 #################################
 # List all files in the chr_alt_out directory
 
-chr_alt_out<-list.files(path = "./chr_alt_out_summary//", pattern = NULL, all.files = FALSE,
+chr_alt_out<-list.files(path = "./results/", pattern = NULL, all.files = FALSE,
                       full.names = TRUE, recursive = FALSE,
                       ignore.case = FALSE, include.dirs = FALSE, no.. = FALSE)
 #################################
@@ -36,13 +36,14 @@ chr_alt_out<-list.files(path = "./chr_alt_out_summary//", pattern = NULL, all.fi
 #################################
 
 readFile <- function(filename) {
-  df <- read.csv(filename, header = FALSE, sep = ",")
+  df <- read.csv(filename, header = FALSE, sep = " ")
+  df <-df[,c(2,3,4,5,6,1)]
   
-  colnames(df)<-c("CHR","GAIN","AMPLI","LOSS","LOH")
+  colnames(df)<-c("CHR","GAIN","AMPLI","LOSS","LOH", "Filename")
   
   df[df == 0] <- NA
   
-  df$CHR<-gsub("p|q", "", df$CHR)
+#  df$CHR<-gsub("p|q", "", df$CHR)
   
 return(df)
 }
@@ -182,3 +183,69 @@ ggplot() +
 #f$estimate
 #ratio=log(f$estimate[1]/f$estimate[2])
 #ratio
+
+############################################################
+#################################
+# List all files in the chr_alt_out directory
+
+results_10k_300k<-list.files(path = "./tmp", pattern = NULL, all.files = FALSE,
+                        full.names = TRUE, recursive = FALSE,
+                        ignore.case = FALSE, include.dirs = FALSE, no.. = FALSE)
+
+long<-readFile(chr_alt_out[4])
+sum<-readFile(chr_alt_out[24])
+seg<-readFile(chr_alt_out[14])
+
+chr_table$length<-chr_table$Arm_end-chr_table$Arm_str
+
+
+# Plot number of segmets vs %alteration based on sum
+boxplot(split(sum$GAIN,seg$GAIN), main="Gain: trim 10k, smooth 300k ",
+        xlab="Number of segments gained", ylab="Percentage Gain")
+
+plot(sum$GAIN,seg$GAIN,xlab="Percentage Gain", ylab="Number of segments gained")
+
+boxplot(split(sum$LOSS,seg$LOSS), main="LOSS: trim 10k, smooth 300k ",
+        xlab="Number of segments lost", ylab="Percentage Alteration")
+
+plot(sum$LOSS,seg$LOSS,xlab="Percentage LOSS", ylab="Number of segments Lost")
+
+
+# Normalize the seg lengths by arm length
+for(i in 1:nrow(chr_table))
+{
+  for(j in 1:nrow(seg))
+  {
+    if (chr_table$Names[i]==seg$CHR[j])
+    {
+      seg$GAIN_norm[j]=seg$GAIN[j]/chr_table$length[i]
+      seg$LOSS_norm[j]=seg$LOSS[j]/chr_table$length[i]
+    }
+  }
+}
+
+boxplot(split(sum$GAIN,seg$GAIN_norm), main="Gain: trim 10k, smooth 300k ",
+        xlab="Number of segments", ylab="Percentage Alteration")
+
+boxplot(split(sum$LOSS,seg$LOSS_norm), main="LOSS: trim 10k, smooth 300k ",
+        xlab="Number of segments", ylab="Percentage Alteration")
+
+plot(sum$GAIN,seg$GAIN_norm,xlab="Percentage Alteration", ylab="Number of segments")
+
+plot(sum$LOSS,seg$LOSS_norm,xlab="Percentage Alteration", ylab="Number of segments")
+
+#######################3
+# Correlation sum vs long
+x_g<-sum$GAIN
+y_g<-long$GAIN
+
+cor(x_g, y_g, use = "complete.obs")
+
+plot(sum$GAIN,long$GAIN,xlab="Percentage GAIN (SUM)", ylab="Percentage GAIN (Longest)")
+
+x_l<-sum$LOSS
+y_l<-long$LOSS
+
+cor(x_l, y_l, use = "complete.obs")
+
+plot(sum$LOSS,long$LOSS,xlab="Percentage LOSS (SUM)", ylab="Percentage LOSS (Longest)")

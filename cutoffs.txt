@@ -1,5 +1,5 @@
 dir filt smooth
-chr_alt_out_10k_1k 10000 1000
+cehr_alt_out_0k_0k 0 0
 chr_alt_out_300k_10Mb 300000 10000000
 chr_alt_out_300k_1Mb 300000 1000000
 chr_alt_out_300k_300k 300000 300000
