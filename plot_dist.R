@@ -1,7 +1,7 @@
 # test code to validate predictions from chr_arm_level_alt.R
 source("arm_level_alt.R")
 
-cutoff <- read.table("cutoffs.txt", 
+cutoff <- read.table("cutoffs.dat", 
                              sep = " ", header = TRUE)
 
 for (i in 1:nrow(cutoff))
