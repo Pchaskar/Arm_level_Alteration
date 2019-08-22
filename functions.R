@@ -299,4 +299,30 @@ segment_no <- function(GR, alt, chr_table) {
 } # End of function percent alteration
 
 
+###############
+# Function: arm_level(DF)
+###############
+# Report Arm Level alterations based on oncoscan_summary
+# more than 80% arm altered
+
+arm_level <- function(df) {
+  
+  gain<-mixedsort(row.names(df[which(df$Gain>=80),]), decreasing = FALSE, na.last = TRUE)
+  gain_arm<-paste(gain, collapse=",")
+  
+  amp<-mixedsort(row.names(df[which(df$Amp>=80),]), decreasing = FALSE, na.last = TRUE)
+  amp_arm<-paste(amp, collapse=",")
+  
+  loss<-mixedsort(row.names(df[which(df$Loss>=80),]), decreasing = FALSE, na.last = TRUE)
+  loss_arm<-paste(loss, collapse=",")
+  
+  loh<-mixedsort(row.names(df[which(df$LOH>=80),]), decreasing = FALSE, na.last = TRUE)
+  loh_arm<-paste(loh, collapse=",")
+  
+  
+  results <- data.frame("Type" = c("AMPL", "GAIN", "LOH", "LOSS"),
+                        "Arms" = c(amp_arm, gain_arm, loh_arm, loss_arm))
+  return(results)
+}
+
 
