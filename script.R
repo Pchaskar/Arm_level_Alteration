@@ -32,7 +32,7 @@ sample_id<-gsub("_gene_list_full_location.txt","",basename(in_file))
 #######################
 
 segment_thr<-300000 # 300k genomide resolution of oncoscan assay
-min_gap<-1000000 # Join segments if within 1M distance of each other 
+min_gap<-0 # Join segments if within X distance of each other 
 
 filter<-as.numeric(segment_thr)
 smooth<-as.numeric(min_gap)
