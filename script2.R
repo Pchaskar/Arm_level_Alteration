@@ -17,17 +17,25 @@ source("functions.R")
 
 chr_table <- getChrTable()
 
+
+# Wrap the script into a function chr_alt_summary for report validation 
+chr_alt_summary <- function(in_file)
+{
+
 #########################
 # Read User input file
 #########################
 args <- commandArgs(trailingOnly = TRUE)
 
 # Input file name.txt
-in_file<-args[1]
+#in_file<-args[1]
 
 # Get the sample ID from the user input file  
-sample_id<-gsub("_gene_list_full_location.txt","",basename(in_file))
+sample_id<-gsub("_gene_*.txt","",basename(in_file))
 
+print (in_file)
+
+print(sample_id)
 #######################
 # Default inputs for filtering and smoothing
 #######################
@@ -112,6 +120,7 @@ arm_level_scna<-arm_level(oncoscan_summary)
 
 # Write output file with Arm Level alterations
 
-csvFileName <- file.path(".",paste0(sample_id,"_", "arm_level","_", "scna",".csv",sep=""))
+csvFileName <- file.path("./test_onscan_results/",paste0(sample_id,"_", "arm_level","_", "scna",".csv",sep=""))
 write.csv(arm_level_scna, csvFileName, row.names=FALSE)
 
+}# End of function chr_alt_summary
