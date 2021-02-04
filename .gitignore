@@ -1,9 +1,10 @@
 tests/
-test*
-tmp*
 .Rhistory
 testfiles/
 oncoscan_files/
 chr_alt_out*/
 distribution/
 *gene_list_full_location.txt
+results/
+scratch/
+scratch_scripts/
